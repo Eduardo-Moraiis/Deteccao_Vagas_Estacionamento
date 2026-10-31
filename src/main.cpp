@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <string>
 #include "ParkingPipeline.hpp"
 #include "Evaluator.hpp"
 
@@ -7,31 +8,45 @@ using namespace std;
 
 int main() {
     cout << "=====================================================" << endl;
-    cout << "      AVALIACAO DE DESEMPENHO PKLot POR CLIMA        " << endl;
+    cout << "   AVALIACAO GLOBAL DO DATASET COMPLETO (PKLot)      " << endl;
     cout << "=====================================================" << endl;
 
-    for(int tau=700; tau<=2500; tau+=100) {
-        cout << "=====================================================" << endl;
-        cout << "      TAU: " << tau << "      " << endl;
-        cout << "=====================================================" << endl;
-        int tauTeste = tau; // Experimente variar: 700, 900, 1100, 1300...
-        ParkingPipeline pipeline(tauTeste);
+    // limiar ótimo comprovado nos experimentos preliminares
+    int tauOtimo = 900;
+    ParkingPipeline pipeline(tauOtimo);
 
-        string baseUFPR04 = "../data/PKLot/PKLot/UFPR04/";
-        vector<MetricasClima> resultados;
-        int limitePorClima = 200;
+    // O valor -1 desativa qualquer limite e processa TODAS as fotos
+    int limitePorClima = -1;
 
-        // 1. Executa as três condições
-        resultados.push_back(Evaluator::avaliarClima(baseUFPR04 + "Sunny", "Sunny", pipeline, limitePorClima));
-        resultados.push_back(Evaluator::avaliarClima(baseUFPR04 + "Cloudy", "Cloudy", pipeline, limitePorClima));
-        resultados.push_back(Evaluator::avaliarClima(baseUFPR04 + "Rainy", "Rainy", pipeline, limitePorClima));
+    // Lista dos 3 pátios da base PKLot
+    vector<string> patios = {"UFPR04", "UFPR05", "PUCPR"};
+    vector<string> climas = {"Sunny", "Cloudy", "Rainy"};
 
-        // 2. Imprime no console a tabela bonita
-        Evaluator::imprimirTabelaComparativa(resultados);
+    vector<MetricasClima> resultadosGlobais;
 
-        // 3. Salva no arquivo CSV histórico na raiz do projeto
-        Evaluator::salvarHistoricoCSV("../historico_experimentos.csv", pipeline.obterLimiar(), resultados);
+    string caminhoBasePKLot = "../data/PKLot/PKLot/";
+
+    // Percorre cada pátio e cada clima
+    for (const auto& patio : patios) {
+        cout << "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+        cout << "Iniciando processamento do patio: " << patio << endl;
+        cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+
+        for (const auto& clima : climas) {
+            string pastaClima = caminhoBasePKLot + patio + "/" + clima;
+            string identificador = patio + "_" + clima;
+
+            MetricasClima m = Evaluator::avaliarClima(pastaClima, identificador, pipeline, limitePorClima);
+            resultadosGlobais.push_back(m);
+        }
     }
 
+    // 1. Imprime a tabela comparativa geral no console
+    Evaluator::imprimirTabelaComparativa(resultadosGlobais);
+
+    // 2. Salva o resultado massivo no histórico CSV
+    Evaluator::salvarHistoricoCSV("../historico_final_tau_900.csv", tauOtimo, resultadosGlobais);
+
+    cout << "\n[FINALIZADO] Todas as imagens foram processadas e registradas com sucesso!" << endl;
     return 0;
 }
