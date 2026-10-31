@@ -1,0 +1,22 @@
+# Pastas de compilação do CMake / CLion
+cmake-build-*/
+.idea/
+build/
+bin/
+out/
+
+# Arquivos temporários do compilador / Visual Studio
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.lib
+*.dll
+.vs/
+
+# Base de dados pesada (NÃO subir para o GitHub!)
+data/
+
+# Arquivos temporários do Windows
+Thumbs.db
+desktop.ini
