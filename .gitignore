@@ -14,6 +14,14 @@ out/
 *.dll
 .vs/
 
+# Ambiente Virtual e Cache do Python (NÃO subir para o GitHub!)
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Base de dados pesada (NÃO subir para o GitHub!)
 data/
 

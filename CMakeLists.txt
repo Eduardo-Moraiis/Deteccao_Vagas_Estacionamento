@@ -4,23 +4,33 @@ project(projeto_estacionamento)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 1. Faz o CMake ler a sua variável de ambiente do Windows
+include(FetchContent)
+FetchContent_Declare(
+        pugixml
+        GIT_REPOSITORY https://github.com/zeux/pugixml.git
+        GIT_TAG v1.14
+)
+FetchContent_MakeAvailable(pugixml)
+
 if(DEFINED ENV{OPENCV_DIR})
     set(OpenCV_DIR $ENV{OPENCV_DIR})
 endif()
-
-# 2. Localiza a instalação do OpenCV
 find_package(OpenCV REQUIRED)
 
-# Mensagens de confirmação no console do CLion
-message(STATUS "--------------------------------------------------")
-message(STATUS "OpenCV encontrado com sucesso!")
-message(STATUS "Versao: ${OpenCV_VERSION}")
-message(STATUS "--------------------------------------------------")
+include_directories(include ${OpenCV_INCLUDE_DIRS})
 
-# 3. Cria o executável com o seu main.cpp
-add_executable(projeto_estacionamento src/main.cpp)
+set(SOURCES
+        src/main.cpp
+        src/DatasetParser.cpp
+        src/ParkingPipeline.cpp
+        src/Evaluator.cpp
+)
 
-# 4. Inclui as pastas de cabeçalhos (.hpp) e vincula as bibliotecas (.lib)
-target_include_directories(projeto_estacionamento PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(projeto_estacionamento PRIVATE ${OpenCV_LIBS})
+set(HEADERS
+        include/DatasetParser.hpp
+        include/ParkingPipeline.hpp
+        include/Evaluator.hpp
+)
+
+add_executable(projeto_estacionamento ${SOURCES} ${HEADERS})
+target_link_libraries(projeto_estacionamento PRIVATE ${OpenCV_LIBS} pugixml::pugixml)

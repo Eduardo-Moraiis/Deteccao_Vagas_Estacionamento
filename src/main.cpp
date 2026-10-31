@@ -1,25 +1,37 @@
 #include <iostream>
-#include <opencv2/opencv.hpp>
+#include <vector>
+#include "ParkingPipeline.hpp"
+#include "Evaluator.hpp"
 
 using namespace std;
-using namespace cv;
 
 int main() {
-    cout << "OpenCV carregado na versao: " << CV_VERSION << endl;
+    cout << "=====================================================" << endl;
+    cout << "      AVALIACAO DE DESEMPENHO PKLot POR CLIMA        " << endl;
+    cout << "=====================================================" << endl;
 
-    // Cria uma imagem preta de 300x500
-    Mat tela = Mat::zeros(300, 500, CV_8UC3);
+    for(int tau=700; tau<=2500; tau+=100) {
+        cout << "=====================================================" << endl;
+        cout << "      TAU: " << tau << "      " << endl;
+        cout << "=====================================================" << endl;
+        int tauTeste = tau; // Experimente variar: 700, 900, 1100, 1300...
+        ParkingPipeline pipeline(tauTeste);
 
-    // Desenha um retangulo verde simulando uma vaga livre
-    rectangle(tela, Point(50, 50), Point(200, 250), Scalar(0, 255, 0), 3);
-    putText(tela, "LIVRE", Point(70, 160), FONT_HERSHEY_SIMPLEX, 0.9, Scalar(0, 255, 0), 2);
+        string baseUFPR04 = "../data/PKLot/PKLot/UFPR04/";
+        vector<MetricasClima> resultados;
+        int limitePorClima = 200;
 
-    // Desenha um retangulo vermelho simulando uma vaga ocupada
-    rectangle(tela, Point(250, 50), Point(400, 250), Scalar(0, 0, 255), 3);
-    putText(tela, "OCUPADA", Point(260, 160), FONT_HERSHEY_SIMPLEX, 0.7, Scalar(0, 0, 255), 2);
+        // 1. Executa as três condições
+        resultados.push_back(Evaluator::avaliarClima(baseUFPR04 + "Sunny", "Sunny", pipeline, limitePorClima));
+        resultados.push_back(Evaluator::avaliarClima(baseUFPR04 + "Cloudy", "Cloudy", pipeline, limitePorClima));
+        resultados.push_back(Evaluator::avaliarClima(baseUFPR04 + "Rainy", "Rainy", pipeline, limitePorClima));
 
-    imshow("Teste Inicial - Smart Parking", tela);
-    waitKey(0); // Espera qualquer tecla para fechar
+        // 2. Imprime no console a tabela bonita
+        Evaluator::imprimirTabelaComparativa(resultados);
+
+        // 3. Salva no arquivo CSV histórico na raiz do projeto
+        Evaluator::salvarHistoricoCSV("../historico_experimentos.csv", pipeline.obterLimiar(), resultados);
+    }
 
     return 0;
 }
