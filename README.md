@@ -6,135 +6,193 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CEFET-MG](https://img.shields.io/badge/CEFET--MG-Vis%C3%A3o%20Computacional-darkblue.svg)](https://www.cefetmg.br/)
 
-Sistema de monitoramento inteligente e contagem automática de vagas de estacionamento em tempo real desenvolvido em **C++** e **OpenCV**, validado sobre o conjunto de dados acadêmico **PKLot (UFPR/PUCPR)**.
+Sistema de detecção e contagem automática de vagas de estacionamento desenvolvido em **C++** e **OpenCV**, avaliado sobre a base **PKLot (UFPR/PUCPR)**.
 
-O projeto adota uma abordagem estritamente fundamentada em **Processamento Digital de Imagens (PDI) clássico** e heurísticas determinísticas de Visão Computacional, dispensando redes neurais profundas para viabilizar a execução em hardware embarcado de baixo custo (*Edge Computing*).
+O projeto adota uma abordagem estritamente baseada em **Processamento Digital de Imagens (PDI) clássico** e heurísticas determinísticas, sem redes neurais nem etapa de treinamento, visando execução em hardware de baixo custo (*Edge Computing*).
 
 ---
 
 ## 📌 Contexto e Motivação
 
-Em estacionamentos de grande porte, a busca por vagas livres gera congestionamento interno, perda de tempo e emissão desnecessária de poluentes (*cruising for parking*). As soluções comerciais convencionais frequentemente empregam sensores físicos dedicados (ultrassônicos ou magnéticos) instalados em cada vaga individual, o que impõe elevados custos de implantação, infraestrutura elétrica e manutenção contínua.
+Em estacionamentos de grande porte, a busca por vagas livres gera congestionamento interno, perda de tempo e emissão desnecessária de poluentes. Soluções com sensores por vaga (ultrassônicos ou magnéticos) têm custo elevado de instalação e manutenção.
 
-Este projeto propõe uma alternativa escalável: **o reaproveitamento de câmeras de vigilância (CCTV) já existentes** para monitorar dezenas de vagas simultaneamente através de técnicas de visão computacional.
+Este projeto propõe reaproveitar **câmeras de vigilância (CCTV) já existentes** para monitorar dezenas de vagas simultaneamente por visão computacional.
 
 ---
 
-## ⚙️ Diferencial de Engenharia: Por que PDI Clássico?
+## ⚙️ Por que PDI clássico?
 
-Ao contrário da tendência contemporânea de aplicar redes neurais convolucionais (CNNs/YOLO) indiscriminadamente, a opção consciente por PDI clássico apoia-se em quatro pilares de engenharia:
+1. **Edge Computing:** executa em CPU, sem GPU e sem nuvem.
+2. **Tempo previsível:** custo linear no número de pixels, cerca de **21 FPS** em CPU com um único *thread* (inclui leitura do JPEG e do XML).
+3. **Explicabilidade (*white-box*):** cada decisão decorre de propriedades observáveis da imagem, o que permite auditar os modos de falha.
+4. **Sem treinamento:** não há risco de sobreajuste a uma câmera específica.
 
-1. **Aderência a Sistemas Embarcados (*Edge Computing*):** Dispensa aceleradores gráficos dedicados (GPUs) e conexão com a nuvem, operando com consumo energético mínimo em microcomputadores e chips automotivos (ex.: Raspberry Pi).
-2. **Determinismo e Tempo Real Estrito:** Taxa de processamento constante de **~22 FPS** por lote de inferência em CPU convencional.
-3. **Interpretabilidade Total (*White-Box*):** As decisões do algoritmo são 100% explicáveis geometricamente e radiometricamente, permitindo auditoria direta dos modos de falha.
-4. **Sem Dependência de Treinamento:** Não requer GPUs para longas rotinas de treinamento nem incorre em risco de *overfitting* espacial.
+O custo dessa escolha é a exatidão: o método é inferior a classificadores treinados (veja a seção de comparação com o PKLot).
 
 ---
 
 ## 🔬 Pipeline Metodológico
 
-O fluxo de processamento é dividido em duas macroetapas bem definidas:
+### 1. PDI global (uma vez por quadro)
+* **Tons de cinza:** `cvtColor` (BGR para cinza).
+* **Filtro gaussiano:** $3 \times 3$, $\sigma = 1$, para atenuar ruído.
+* **Limiarização adaptativa:** `ADAPTIVE_THRESH_GAUSSIAN_C` com `THRESH_BINARY_INV`, bloco $25 \times 25$, $C = 16$. Um pixel fica ativo quando é mais escuro que a média local em mais de $C$ níveis.
+* **Dilatação:** elemento retangular $3 \times 3$, para conectar as arestas do veículo.
 
-### 1. Processamento Digital de Imagens (Nível Global)
-* **Conversão de Cores:** Conversão de BGR para Escala de Cinza (redução de dimensionalidade matricial de 3 para 1 canal).
-* **Filtragem Espacial:** Filtro Gaussiano ($3 \times 3$, $\sigma = 1$) para atenuação de ruídos de alta frequência do sensor da câmera.
-* **Segmentação:** Limiarização Adaptativa (`ADAPTIVE_THRESH_GAUSSIAN_C` com `THRESH_BINARY_INV`, bloco $25 \times 25$, $C = 16$), tornando a binarização resiliente a gradientes de luminosidade na cena.
-* **Morfologia Matemática:** Dilatação com elemento estruturante retangular ($3 \times 3$) para consolidar as arestas e texturas do veículo contra o piso uniforme.
-
-### 2. Visão Computacional e Decisão (Nível de ROI)
-* **Mapeamento de Regiões de Interesse (ROIs):** Extração das coordenadas poligonais de cada vaga a partir dos arquivos descritores XML da PKLot.
-* **Isolamento Espacial:** Aplicação de máscara convexa (`fillConvexPoly` + `bitwise_and`), eliminando ruídos e faixas de trânsito externas ao perímetro da vaga.
-* **Extração de Atributos:** Contagem da densidade de pixels brancos/ativos (`cv::countNonZero`).
-* **Classificador Determinístico:** Regra por limiar de decisão ($\tau$): se $\text{Pixels} \ge \tau$, a vaga é rotulada como **Ocupada (Vermelho)**; caso contrário, **Livre (Verde)**.
+### 2. Decisão por vaga (nível de ROI)
+* **Polígono da vaga:** quatro vértices lidos do XML da PKLot (`pugixml`).
+* **Máscara convexa:** `fillConvexPoly` + `bitwise_and`, restringindo a contagem ao interior da vaga.
+* **Característica:** número de pixels ativos (`cv::countNonZero`).
+* **Regra:** se pixels $\ge \tau$, a vaga é **ocupada** (vermelho); caso contrário, **livre** (verde).
 
 ---
 
-## 📊 Resultados Experimentais e Calibração
+## 📊 Resultados
 
-Os experimentos foram conduzidos sobre o subconjunto **UFPR04** do dataset PKLot (28 vagas por tomada), avaliando **200 imagens por condição climática** (totalizando **16.800 avaliações de vagas** por rodada de teste).
+### 1. Calibração do limiar $\tau$ (UFPR04)
 
-### Calibração do Hiperparâmetro $\tau$ (Varredura de 700 a 2500)
-Foi conduzida uma varredura empírica sistemática do limiar $\tau$ com passo de 100 pixels para identificar a zona de operação ideal:
+Varredura de $\tau = 700$ a $2500$ (passo 100) no pátio **UFPR04**, com **200 imagens por clima** (16.800 avaliações de vagas por valor de $\tau$).
 
-* **$\tau < 900$ (Alta Sensibilidade):** Recall elevado ($\approx 96\%$), porém com alto índice de Falsos Positivos ($FP$) provocados por sombras duras de árvores e reflexos de poças d'água.
-* **$\tau > 900$ (Baixa Sensibilidade):** Queda drástica de revocação no cenário nublado, pois a iluminação difusa gera texturas suaves que não atingem limiares elevados ($FN$ expressivos).
-* **$\mathbf{\tau = 900}$ (Ponto Ótimo):** Estabeleceu o melhor equilíbrio (*trade-off*), maximizando a Acurácia Global e o F1-Score Médio.
+* **$\tau < 900$:** recall alto ($\approx 96\%$), mas muitos falsos positivos (sombras duras e poças d'água).
+* **$\tau > 900$:** o recall cai, principalmente no nublado, onde a luz difusa gera pouco contraste.
+* **$\tau = 900$:** melhor compromisso, com **acurácia global de 85,81%** e **F1 médio de 82,37%** nesse subconjunto.
 
-### Desempenho Quantitativo na Configuração Ótima ($\tau = 900$)
+| Clima (UFPR04, 200 imagens) | VP | VN | FP | FN | Acurácia | Precisão | Recall | F1 |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Ensolarado | 1.681 | 2.932 | 702 | 285 | 82,38% | 70,54% | 85,50% | 77,31% |
+| Nublado | 3.799 | 1.041 | 222 | 538 | 86,43% | 94,48% | 87,60% | 90,91% |
+| Chuvoso | 1.191 | 3.772 | 463 | 174 | 88,62% | 72,01% | 87,25% | 78,90% |
+| **Global** | **6.671** | **7.745** | **1.387** | **997** | **85,81%** | **82,79%** | **86,99%** | **82,37%** |
 
-| Condição Climática | Imagens | Vagas Avaliadas | VP | VN | FP | FN | Acurácia | Precisão | Recall | F1-Score | FPS |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Ensolarado (`Sunny`)** | 200 | 5.600 | 1.681 | 2.932 | 702 | 285 | **82,38%** | 70,54% | 85,50% | 77,31% | 22,0 |
-| **Nublado (`Cloudy`)** | 200 | 5.600 | 3.799 | 1.041 | 222 | 538 | **86,43%** | 94,48% | 87,60% | **90,91%** | 21,8 |
-| **Chuvoso (`Rainy`)** | 200 | 5.600 | 1.191 | 3.772 | 463 | 174 | **88,62%** | 72,01% | 87,25% | 78,90% | 22,4 |
-| **MÉDIA / GLOBAL** | **600** | **16.800** | **6.671** | **7.745** | **1.387** | **997** | **85,81%** | **82,79%** | **86,99%** | **82,37%** | **22,1** |
+### 2. Benchmark em toda a base (τ = 900)
+
+Todas as imagens processadas da PKLot: **12.416 imagens** e **719.528 decisões de vaga**.
+
+| Pátio | Condição | Imagens | Vagas | Acurácia | Precisão | Recall | F1 | FPS |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| UFPR04 | Ensolarado | 2.098 | 58.744 | 86,63% | 84,73% | 92,19% | 88,31% | 21,5 |
+| UFPR04 | Nublado | 1.408 | 39.424 | 88,31% | 74,51% | 91,67% | 82,21% | 21,9 |
+| UFPR04 | Chuvoso | 285 | 7.980 | 88,90% | 76,94% | 89,04% | 82,55% | 22,2 |
+| UFPR05 | Ensolarado | 2.500 | 100.000 | 78,39% | 79,75% | 83,73% | 81,69% | 21,4 |
+| UFPR05 | Nublado | 1.426 | 57.040 | 79,00% | 81,48% | 83,51% | 82,48% | 21,7 |
+| UFPR05 | Chuvoso | 226 | 9.040 | 75,56% | 85,45% | 76,72% | 80,85% | 21,7 |
+| PUCPR | Ensolarado | 2.314 | 231.400 | 69,78% | 70,81% | 44,55% | 54,69% | 20,5 |
+| PUCPR | Nublado | 1.328 | 132.800 | 77,53% | 69,50% | 52,66% | 59,92% | 20,7 |
+| PUCPR | Chuvoso | 831 | 83.100 | 61,80% | 86,59% | 50,16% | 63,52% | 20,5 |
+| **Total** | **Todas** | **12.416** | **719.528** | **74,89%** | **78,08%** | **64,22%** | **70,47%** | **21,2** |
+
+Consolidado por pátio:
+
+| Pátio | Vagas/imagem | Acurácia | Precisão | Recall | F1 | FP | FN |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| UFPR04 (4º andar) | 28 | 87,42% | 81,52% | 91,90% | 86,40% | 9.613 | 3.736 |
+| UFPR05 (5º andar) | 40 | 78,45% | 80,66% | 83,21% | 81,92% | 19.443 | 16.353 |
+| PUCPR (10º andar) | 100 | 70,59% | 74,54% | 47,95% | 58,36% | 31.476 | 100.056 |
+
+### 3. Comparação com o *baseline* do PKLot
+
+O artigo da base (Almeida et al., 2015) treina SVMs com descritores de textura (LBP e LPQ). Não é uma comparação direta: o *baseline* treina e usa metade dos dias para teste, enquanto este projeto não treina e avalia todas as imagens com um único limiar calibrado no UFPR04. O cenário mais próximo é "treinar/calibrar no UFPR04 e testar nos demais pátios":
+
+| Pátio de teste | Baseline (fusão) | Baseline (melhor único) | Este projeto | Diferença (fusão) |
+| :--- | :---: | :---: | :---: | :---: |
+| UFPR04 (mesmo pátio) | 99,64% | 99,55% | 87,42% | −12,22 p.p. |
+| UFPR05 | 88,33% | 84,92% | 78,45% | −9,88 p.p. |
+| PUCPR | 88,40% | 84,25% | 70,59% | −17,81 p.p. |
+
+O *baseline* é superior em exatidão em todos os casos. A tendência qualitativa é a mesma: a PUCPR é o pátio mais difícil nos dois trabalhos.
 
 ---
 
-## 🔍 Análise Crítica: Onde o Método Brilha e Onde Falha?
+## 🔍 Análise Crítica: onde o método funciona e onde falha
 
-Conforme exigido na avaliação metodológica da disciplina:
+**Onde funciona melhor:** com a câmera mais próxima (UFPR04, 28 vagas por imagem), a acurácia chega a 87,42% e o recall a 91,90%. As vagas têm muitos pixels e o contraste entre o carro e o asfalto é claro.
 
-* **Onde o método funciona melhor:** No cenário **Nublado (`Cloudy`)**, com **F1-Score de 90,91%**. A ausência de luz solar direta elimina sombras duras e reflexos especulares; o asfalto cinza uniforme contrapõe-se nitidamente à descontinuidade dos veículos.
-* **Onde o método apresenta limitações:**
-    * **Sombras Duras (`Sunny`):** Sombras projetadas de árvores, postes ou veículos adjacentes sobre o asfalto claro criam bordas abruptas que a limiarização adaptativa interpreta como descontinuidade estrutural, elevando os Falsos Positivos ($FP = 702$).
-    * **Reflexos Especulares (`Rainy`):** O asfalto molhado atua como espelho d'água, refletindo claridade do céu e iluminação artificial, além de gerar textura pelo impacto de gotas de chuva ($FP = 463$).
+**Modos de falha:**
+
+1. **Sombras duras (sol, falso positivo):** a limiarização adaptativa ativa pixels mais escuros que a vizinhança; a borda de uma sombra no asfalto gera um gradiente semelhante à borda de um veículo.
+2. **Reflexos em pavimento molhado (chuva, falso positivo):** poças refletem o céu e as luminárias, e o impacto das gotas gera ruído de alta frequência que a dilatação agrupa.
+3. **Textura do piso (PUCPR, falso positivo):** nas imagens binarizadas da PUCPR, o piso de bloquete sob pouca iluminação gera uma nuvem de pixels ativos que se assemelha a um veículo. É uma observação qualitativa ainda não quantificada por pátio.
+4. **Altura da câmera e escala da vaga (falso negativo):** na PUCPR (10º andar, 100 vagas em $1280 \times 720$) cada vaga tem poucos pixels, e um carro raramente atinge $\tau = 900$. O recall cai para 47,95%, e 83% dos falsos negativos de todo o benchmark ocorrem nesse pátio.
+
+**Achado central:** o limiar absoluto $\tau$ não é invariante à escala da cena. A sua transferência entre câmeras exigiria $\tau_i \propto \text{Área}_i$ (limiar proporcional à área do polígono da vaga).
+
+### Limitações conhecidas
+
+* O subconjunto de calibração (200 imagens por clima) faz parte do UFPR04 avaliado no benchmark, então os números desse pátio são otimistas.
+* Não há divisão treino/teste nem comparação direta com métodos supervisionados.
+* A condição chuvosa tem poucas imagens (285, 226 e 831 por pátio).
+* **Em verificação:** na PUCPR Sunny, o número de vagas livres contadas é muito maior que o da Tabela 1 do artigo do PKLot (231.400 vagas contra 208.433). Uma hipótese é que `<space>` sem o atributo `occupied` esteja sendo lido como livre. Enquanto isso não for verificado, trate os números da PUCPR Sunny e o total com cautela.
 
 ---
 
 ## 📁 Estrutura do Repositório
 
-* `CMakeLists.txt`: Configuração modular de compilação com CMake.
-* `.gitignore`: Regras para ignorar pastas de build, ambientes virtuais e datasets.
-* `historico_experimentos.csv`: Log consolidado de todas as baterias de teste executadas.
-* `include/DatasetParser.hpp`: Interface do leitor de XML via pugixml.
-* `include/Evaluator.hpp`: Interface de métricas e benchmarking estatístico.
-* `include/ParkingPipeline.hpp`: Interface do pipeline de PDI e classificação.
-* `src/DatasetParser.cpp`: Implementação da extração de ROIs e anotações.
-* `src/Evaluator.cpp`: Execução em lote e cálculo de matriz de confusão.
-* `src/ParkingPipeline.cpp`: Implementação dos operadores clássicos do OpenCV.
-* `src/main.cpp`: Ponto de entrada e orquestrador dos testes.
-* `scripts/visualizar_resultados.py`: Script Python para geração automática de gráficos e tabelas LaTeX.
-* `graficos/`: Diretório com as figuras científicas geradas em 300 DPI (`fig1` a `fig4`).
+* `CMakeLists.txt`: configuração de compilação (`pugixml` via `FetchContent`).
+* `include/` e `src/`: código C++ (`DatasetParser`, `ParkingPipeline`, `Evaluator`, `main.cpp`).
+* `scripts/visualizar_resultados.py`: gráficos da calibração de $\tau$ (lê `historico_experimentos.csv`).
+* `scripts/visualizar_benchmark_global.py`: gráficos e tabelas LaTeX do benchmark completo (lê `historico_final_tau_900.csv`).
+* `historico_experimentos.csv`: varredura de $\tau$ no UFPR04.
+* `historico_final_tau_900.csv`: benchmark completo com $\tau = 900$.
+* `graficos/`: figuras em 300 DPI (calibração, benchmark e galeria de exemplos).
+* `relatorio_tex/`: artigo em LaTeX (abnTeX2).
+* `relatorio.md`: relatório técnico de desenvolvimento.
+* `data/`: base PKLot (não versionada).
 
 ---
 
 ## 🚀 Como Compilar e Executar
 
 ### Pré-requisitos
-* Compilador C++ com suporte a **C++20** (MSVC 2019/2022 no Windows ou GCC/Clang no Linux);
+* Compilador com suporte a **C++20** (MSVC 2019/2022, GCC ou Clang);
 * **CMake 3.20+**;
-* **OpenCV 4.x ou 5.x** instalado e referenciado no ambiente (`OPENCV_DIR`);
-* Python 3.9+ com `pandas`, `matplotlib`, `seaborn` e `tabulate`.
+* **OpenCV 4.x ou 5.x** (com o módulo `highgui` para a galeria);
+* **Base PKLot** em `data/PKLot/PKLot/` (pastas `UFPR04`, `UFPR05` e `PUCPR`). A base é distribuída pelos autores sob solicitação: <http://web.inf.ufpr.br/vri/parking-lot-database>;
+* Python 3.9+ com `pandas`, `matplotlib` e `seaborn`.
 
-### 1. Compilação do Núcleo em C++
-Abra o projeto no **CLion** ou compile via linha de comando:
+### 1. Compilação
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
-./build/projeto_estacionamento
 ```
 
-*Nota: A biblioteca `pugixml` é baixada e compilada automaticamente pelo CMake via `FetchContent`.*
+### 2. Execução
 
-### 2. Geração dos Gráficos e Tabelas (Python)
-Para processar o arquivo `historico_experimentos.csv` e salvar as figuras:
+O executável procura a base em `../data/PKLot/PKLot/`, relativo à pasta de execução (por exemplo, `cmake-build-*`).
 
 ```bash
-pip install pandas matplotlib seaborn tabulate
-python scripts/visualizar_resultados.py
+# Benchmark completo (padrão): processa todas as imagens e grava ../historico_final_tau_900.csv
+./projeto_estacionamento
+
+# Galeria 3x3: uma amostra por pátio e clima, com caixas, placar e janela das imagens binarizadas
+./projeto_estacionamento --galeria
+
+# Apenas gera e salva os mosaicos em ../graficos/, sem abrir janelas
+./projeto_estacionamento --galeria --sem-janelas
 ```
 
-As imagens são salvas automaticamente no diretório `graficos/` em 300 DPI, prontas para diagramação em LaTeX / Overleaf.
+Na galeria, as caixas são **vermelhas** (ocupada) ou **verdes** (livre) segundo a predição, e a faixa inferior de cada célula mostra o total de vagas, as contagens preditas e o gabarito. Os mosaicos são salvos em `../graficos/galeria_exemplos.png` e `../graficos/galeria_binarizada.png`. Teclas: `s` salva de novo; `q` ou ESC sai.
+
+### 3. Gráficos e tabelas (Python)
+
+```bash
+pip install pandas matplotlib seaborn
+
+# Calibração de tau (UFPR04)
+python scripts/visualizar_resultados.py
+
+# Benchmark completo: figuras benchmark_fig1 a benchmark_fig4 e tabelas .tex (booktabs)
+python scripts/visualizar_benchmark_global.py --csv historico_final_tau_900.csv --saida graficos
+```
 
 ---
 
 ## 📚 Referências
 
-1. **ALMEIDA, P. et al.** PKLot – A robust dataset for parking lot classification. *Expert Systems with Applications*, v. 42, n. 11, p. 4937-4949, 2015.
-2. **GONZALEZ, R. C.; WOODS, R. E.** *Processamento Digital de Imagens*. 3. ed. Pearson, 2010.
-3. **OPENCV.** *Open Source Computer Vision Library*. Disponível em: https://opencv.org/.
+1. **ALMEIDA, P. R. L. et al.** PKLot – A robust dataset for parking lot classification. *Expert Systems with Applications*, v. 42, n. 11, p. 4937-4949, 2015.
+2. **GONZALEZ, R. C.; WOODS, R. E.** *Processamento Digital de Imagens*. 3. ed. São Paulo: Pearson, 2010.
+3. **BRADLEY, D.; ROTH, G.** Adaptive thresholding using the integral image. *Journal of Graphics Tools*, v. 12, n. 2, p. 13-21, 2007.
+4. **BRADSKI, G.** The OpenCV library. *Dr. Dobb's Journal of Software Tools*, 2000. <https://opencv.org/>
 
 ---
 
@@ -142,5 +200,5 @@ As imagens são salvas automaticamente no diretório `graficos/` em 300 DPI, pro
 
 * **Instituição:** Centro Federal de Educação Tecnológica de Minas Gerais (CEFET-MG)
 * **Disciplina:** Visão Computacional
-* **Docente Responsável:** Profª Drª Natália Batista
+* **Docente responsável:** Profª Drª Natália Batista
 * **Desenvolvedor:** Eduardo Morais Silva Martins

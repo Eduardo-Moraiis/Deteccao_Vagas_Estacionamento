@@ -1,0 +1,455 @@
+%% abtex2-modelo-artigo.tex, v-1.9.7 laurocesar
+%% Copyright 2012-2018 by abnTeX2 group at http://www.abntex.net.br/ 
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%   http://www.latex-project.org/lppl.txt
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%%
+%% This work has the LPPL maintenance status `maintained'.
+%% 
+%% The Current Maintainer of this work is the abnTeX2 team, led
+%% by Lauro César Araujo. Further information are available on 
+%% http://www.abntex.net.br/
+%%
+%% This work consists of the files abntex2-modelo-artigo.tex and
+%% abntex2-modelo-references.bib
+%%
+
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+% abnTeX2: Modelo de Artigo Acadêmico em conformidade com
+% ABNT NBR 6022:2018: Informação e documentação - Artigo em publicação 
+% periódica científica - Apresentação
+% ------------------------------------------------------------------------
+% ------------------------------------------------------------------------
+
+\documentclass[
+	% -- opções da classe memoir --
+	article,			% indica que é um artigo acadêmico
+	11pt,				% tamanho da fonte
+	oneside,			% para impressão apenas no recto. Oposto a twoside
+	a4paper,			% tamanho do papel. 
+	% -- opções da classe abntex2 --
+	%chapter=TITLE,		% títulos de capítulos convertidos em letras maiúsculas
+	%section=TITLE,		% títulos de seções convertidos em letras maiúsculas
+	%subsection=TITLE,	% títulos de subseções convertidos em letras maiúsculas
+	%subsubsection=TITLE % títulos de subsubseções convertidos em letras maiúsculas
+	% -- opções do pacote babel --
+	english,			% idioma adicional para hifenização
+	brazil,				% o último idioma é o principal do documento
+	sumario=tradicional
+	]{abntex2}
+
+
+% ---
+% PACOTES
+% ---
+
+% ---
+% Pacotes fundamentais 
+% ---
+\usepackage{lmodern}			% Usa a fonte Latin Modern
+\usepackage[T1]{fontenc}		% Selecao de codigos de fonte.
+\usepackage[utf8]{inputenc}		% Codificacao do documento (conversão automática dos acentos)
+\usepackage{indentfirst}		% Indenta o primeiro parágrafo de cada seção.
+\usepackage{nomencl} 			% Lista de simbolos
+\usepackage{color}				% Controle das cores
+\usepackage{graphicx}			% Inclusão de gráficos
+\usepackage{microtype} 			% para melhorias de justificação
+% ---
+		
+% ---
+% Pacotes adicionais, usados apenas no âmbito do Modelo Canônico do abnteX2
+% ---
+\usepackage{lipsum}				% para geração de dummy text
+% ---
+		
+% ---
+% Pacotes de citações
+% ---
+\usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
+\usepackage[alf]{abntex2cite}	% Citações padrão ABNT
+% ---
+
+% ---
+% Configurações do pacote backref
+% Usado sem a opção hyperpageref de backref
+\renewcommand{\backrefpagesname}{Citado na(s) página(s):~}
+% Texto padrão antes do número das páginas
+\renewcommand{\backref}{}
+% Define os textos da citação
+\renewcommand*{\backrefalt}[4]{
+	\ifcase #1 %
+		Nenhuma citação no texto.%
+	\or
+		Citado na página #2.%
+	\else
+		Citado #1 vezes nas páginas #2.%
+	\fi}%
+% ---
+
+% --- Informações de dados para CAPA e FOLHA DE ROSTO ---
+% --- Pacotes adicionais usados neste artigo ---
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{float}
+
+% Figura com marcador de posição: se o arquivo PNG não existir, mostra um quadro.
+% Os PNGs gerados pelos scripts Python ficam em ../graficos/ (pasta irmã de relatorio_tex).
+\newcommand{\figurafonte}[3]{% arquivo, largura, rótulo do marcador
+  \IfFileExists{../graficos/#1}%
+    {\includegraphics[width=#2\textwidth]{../graficos/#1}}%
+    {\fbox{\parbox[c][5cm][c]{0.8\textwidth}{\centering [Inserir figura: #3]\\ \texttt{\detokenize{../graficos/#1}}}}}%
+}
+
+% Listagem de código (C++) com acentos UTF-8
+\lstset{
+  language=C++, basicstyle=\ttfamily\scriptsize, breaklines=true,
+  numbers=left, numberstyle=\tiny, frame=single, tabsize=4,
+  showstringspaces=false, columns=fullflexible, keepspaces=true,
+  literate={á}{{\'a}}1 {à}{{\`a}}1 {ã}{{\~a}}1 {â}{{\^a}}1 {é}{{\'e}}1 {ê}{{\^e}}1
+           {í}{{\'i}}1 {ó}{{\'o}}1 {õ}{{\~o}}1 {ô}{{\^o}}1 {ú}{{\'u}}1 {ç}{{\c c}}1
+           {Á}{{\'A}}1 {Ã}{{\~A}}1 {É}{{\'E}}1 {Ç}{{\c C}}1 {º}{{\textordmasculine}}1 {—}{{---}}1 {–}{{--}}1
+}
+
+% ---
+% Informações para o título
+% ---
+\titulo{Detecção automática de vagas de estacionamento por processamento digital de imagens clássico: calibração do limiar, benchmark na base PKLot e análise dos modos de falha}
+\tituloestrangeiro{Automatic parking space detection using classical digital image processing: threshold calibration, PKLot benchmark and failure-mode analysis}
+
+\autor{
+Eduardo Morais Silva Martins\thanks{Graduando em Engenharia de Computação, Centro Federal de Educação Tecnológica de Minas Gerais (CEFET-MG), campus Nova Gameleira, Belo Horizonte, MG. Disciplina de Visão Computacional, Profª Drª Natália Batista.}
+% Se houver coautores, acrescente: \\[0.5cm] Nome do coautor\thanks{...}
+}
+
+\local{Belo Horizonte}
+\data{Novembro de 2026}
+
+\makeatletter
+\hypersetup{
+  pdftitle={\@title}, pdfauthor={Eduardo Morais Silva Martins},
+  pdfsubject={Visão Computacional -- CEFET-MG},
+  pdfkeywords={PKLot}{vagas de estacionamento}{processamento digital de imagens}{OpenCV},
+  colorlinks=true, linkcolor=blue, citecolor=blue, filecolor=magenta, urlcolor=blue, bookmarksdepth=4
+}
+\makeatother
+
+\makeindex
+\setlrmarginsandblock{3cm}{3cm}{*}
+\setulmarginsandblock{3cm}{3cm}{*}
+\checkandfixthelayout
+\setlength{\parindent}{1.3cm}
+\setlength{\parskip}{0.2cm}
+\SingleSpacing
+\definecolor{blue}{RGB}{41,5,195}
+
+\begin{document}
+\selectlanguage{brazil}
+\frenchspacing
+\maketitle
+
+\begin{resumoumacoluna}
+Este trabalho propõe e avalia um sistema de detecção de vagas de estacionamento ocupadas e livres baseado exclusivamente em processamento digital de imagens (PDI) clássico, sem aprendizado de máquina. O pipeline, implementado em C++20 com OpenCV, aplica conversão para tons de cinza, filtragem gaussiana, limiarização adaptativa e dilatação morfológica sobre a imagem inteira e, em seguida, conta os pixels ativos dentro do polígono de cada vaga, decidindo a ocupação por um limiar $\tau$. A calibração de $\tau$ no pátio UFPR04 da base PKLot indicou $\tau=900$ (acurácia de 85,81\% e F1-Score médio de 82,37\%). Fixado esse valor, o sistema foi avaliado nas 12.416 imagens processadas da base, totalizando 719.528 decisões de vaga, com acurácia global de 74,89\%, F1-Score de 70,47\% e cerca de 21,2 quadros por segundo em CPU. O desempenho varia com a geometria da câmera: 87,42\% de acurácia no UFPR04 (4º andar), 78,45\% no UFPR05 e 70,59\% na PUCPR (10º andar), onde o recall cai a 47,95\% porque cada vaga ocupa poucos pixels e o limiar absoluto deixa de ser adequado. A análise dos erros relaciona os falsos positivos a sombras duras e reflexos em pavimento molhado e os falsos negativos à escala da vaga na imagem, e propõe normalizar o limiar pela área da vaga, suprimir sombras no espaço HSV e integrar decisões no tempo.
+
+\vspace{\onelineskip}
+\noindent
+\textbf{Palavras-chave}: PKLot. vagas de estacionamento. processamento digital de imagens. limiarização adaptativa. OpenCV.
+\end{resumoumacoluna}
+
+\renewcommand{\resumoname}{Abstract}
+\begin{resumoumacoluna}
+\begin{otherlanguage*}{english}
+This paper presents and evaluates a parking space occupancy detector built exclusively on classical digital image processing, with no machine learning. A C++20/OpenCV pipeline applies grayscale conversion, Gaussian filtering, adaptive thresholding and morphological dilation to the whole frame, then counts active pixels inside each annotated space polygon and decides occupancy with a threshold $\tau$. Calibrating $\tau$ on the UFPR04 lot of the PKLot dataset yielded $\tau=900$ (85.81\% accuracy, 82.37\% mean F1-Score). With $\tau$ fixed, the system was evaluated on 12,416 images (719,528 space-level decisions), reaching 74.89\% global accuracy, 70.47\% F1-Score and about 21.2 frames per second on a CPU. Performance depends strongly on camera geometry: 87.42\% accuracy on UFPR04 (4th floor), 78.45\% on UFPR05 and 70.59\% on PUCPR (10th floor), where recall drops to 47.95\% because each space covers few pixels and an absolute threshold no longer fits. The error analysis links false positives to hard shadows and wet-pavement reflections and false negatives to space scale in the image, and proposes area-normalised thresholds, HSV shadow suppression and temporal integration.
+
+\vspace{\onelineskip}
+\noindent
+\textbf{Keywords}: PKLot. parking spaces. digital image processing. adaptive thresholding. OpenCV.
+\end{otherlanguage*}
+\end{resumoumacoluna}
+
+\textual
+
+% ----------------------------------------------------------
+\section{Introdução}
+% ----------------------------------------------------------
+
+A busca por vagas em grandes estacionamentos consome tempo, combustível e atenção do motorista, e contribui para o congestionamento interno e para a emissão de poluentes. As soluções comerciais se dividem em sistemas de contagem nas entradas e saídas, que informam o total de vagas livres mas não a sua posição, e sistemas com sensores por vaga, como os ultrassônicos e os magnéticos \cite{wolff2006magnetic}, cujo custo de instalação e manutenção cresce com o número de vagas. Uma alternativa é reaproveitar câmeras de vigilância (CCTV) já instaladas: uma única câmera enquadra dezenas ou centenas de vagas \cite{almeida2015pklot}.
+
+O estado da arte recente em ocupação de vagas usa redes neurais convolucionais \cite{amato2017deep}, que são precisas, mas exigem dados anotados, treinamento e hardware com maior capacidade de cálculo. Este trabalho adota deliberadamente o caminho oposto: um pipeline de PDI clássico e decisão por limiar, justificado por quatro razões de engenharia: (i) custo computacional baixo, compatível com \textit{edge computing} em CPU; (ii) tempo de execução previsível, com complexidade linear no número de pixels; (iii) explicabilidade \textit{white-box}, pois cada decisão decorre de propriedades observáveis da imagem, o que permite localizar a causa de cada erro; e (iv) ausência de treinamento, e portanto de sobreajuste a uma câmera específica.
+
+O objetivo é construir esse sistema, avaliá-lo na base PKLot e, principalmente, entender onde e por que ele falha. Não se busca superar métodos supervisionados, mas medir os limites de uma formulação simples e interpretável. As contribuições são: (a) um pipeline modular em C++20 com mascaramento poligonal de cada vaga; (b) a calibração empírica do limiar $\tau$; (c) um benchmark sobre 719.528 decisões de vaga em três pátios e três condições climáticas; e (d) uma análise dos modos de falha ligada à física da formação da imagem, com a identificação do efeito da altura da câmera sobre o limiar.
+
+% ----------------------------------------------------------
+\section{Referencial teórico}
+% ----------------------------------------------------------
+
+\textbf{Tons de cinza.} A imagem colorida é reduzida à luminância $Y = 0{,}299R + 0{,}587G + 0{,}114B$ \cite{gonzalez2010pdi}, o que descarta a crominância e deixa o método dependente da variação de intensidade, e não da cor da lataria.
+
+\textbf{Filtragem gaussiana.} O ruído de sensor e de compressão é atenuado pela convolução com o núcleo
+\begin{equation}
+G_\sigma(x,y)=\frac{1}{2\pi\sigma^{2}}\exp\!\left(-\frac{x^{2}+y^{2}}{2\sigma^{2}}\right),
+\end{equation}
+que é um passa-baixas isotrópico e separável \cite{gonzalez2010pdi}.
+
+\textbf{Limiarização adaptativa.} Em vez de um limiar global, cada pixel é comparado à média ponderada da sua vizinhança \cite{bradley2007adaptive}. Com janela gaussiana $w$ de $25\times25$ e constante $C$, o limiar local e a imagem binária (variante invertida, \texttt{THRESH\_BINARY\_INV}) são
+\begin{equation}
+T(x,y)=\sum_{(u,v)} w(u,v)\,I_s(x+u,y+v)-C,\qquad
+B(x,y)=\begin{cases}255,& I_s(x,y)<T(x,y)\\ 0,&\text{caso contrário.}\end{cases}
+\end{equation}
+Assim, um pixel é ativado quando é mais escuro que a sua vizinhança em mais de $C$ níveis de cinza. Isso torna o método tolerante a variações lentas de iluminação, mas sensível a qualquer descontinuidade local de brilho, inclusive a borda de uma sombra.
+
+\textbf{Morfologia matemática.} A dilatação por um elemento estruturante $S$, $(B\oplus S)(x,y)=\max_{(s,t)\in S}B(x-s,y-t)$, une fragmentos próximos e conecta as arestas de um mesmo objeto \cite{haralick1987morphology}.
+
+\textbf{Característica por densidade.} Para a vaga $i$, com região poligonal $P_i$, a característica é a contagem de pixels ativos e a decisão é por limiar:
+\begin{equation}
+p_i=\sum_{(x,y)\in P_i}\mathbb{1}\!\left[D(x,y)>0\right],\qquad \hat{y}_i=\mathbb{1}\!\left[p_i\ge\tau\right],
+\end{equation}
+em que $D$ é a imagem dilatada e $\hat{y}_i=1$ indica vaga ocupada. A hipótese é que um veículo, com para-brisa, vidros, rodas e vincos de lataria, produz muitas transições de brilho, e o asfalto liso produz poucas.
+
+\textbf{Métricas.} Com verdadeiros positivos (VP), verdadeiros negativos (VN), falsos positivos (FP, vaga livre classificada como ocupada) e falsos negativos (FN, carro não detectado), definem-se acurácia $=(VP+VN)/N$, precisão $=VP/(VP+FP)$, \textit{recall} $=VP/(VP+FN)$ e F1 $=2PR/(P+R)$.
+
+% ----------------------------------------------------------
+\section{Trabalhos relacionados}
+% ----------------------------------------------------------
+
+Os sistemas baseados em imagem dividem-se em orientados a carro, que detectam veículos, e orientados a vaga, que classificam cada espaço \cite{almeida2015pklot}. Os primeiros sofrem com a perspectiva, pois um carro distante tem poucos pixels. Entre os segundos, a subtração de fundo assume um fundo estatisticamente estacionário, hipótese que falha ao ar livre. Sastre et al. \cite{sastre2007gabor} usaram filtros de Gabor, Ichihashi et al. \cite{ichihashi2009fcm} usaram PCA com classificador fuzzy e Huang e Wang \cite{huang2010bayesian} propuseram um modelo bayesiano hierárquico que considera a oclusão entre vagas. Funck et al. \cite{funck2004carpark} já determinavam a ocupação a partir de imagens únicas.
+
+O trabalho que fundamenta este estudo é o de Almeida et al. \cite{almeida2015pklot}, que apresentam a base PKLot (12.417 imagens, 695.899 recortes de vagas) e um \textit{baseline} com descritores de textura (LBP e LPQ) e SVM. Os autores obtêm mais de 99\% de acurácia quando treino e teste usam o mesmo pátio, mas cerca de 89\% como melhor resultado quando o classificador é aplicado a um pátio não visto, o que mostra a dificuldade de generalizar entre câmeras. Esse protocolo usa classificadores treinados e divisão treino/teste por dia, enquanto o método aqui proposto não treina nada, avalia todas as imagens e usa um único limiar, de modo que os números não são diretamente comparáveis. A posição deste trabalho é a de uma alternativa determinística e de baixo custo, cujo comportamento de erro é analisado em profundidade, e não a de um concorrente em acurácia. O resultado entre pátios (Seção~\ref{sec:comparacao}) mostra a mesma tendência de queda de desempenho entre câmeras relatada pelos autores, porém com magnitude maior na PUCPR.
+
+% ----------------------------------------------------------
+\section{Metodologia proposta}
+% ----------------------------------------------------------
+
+O sistema foi implementado em C++20, com OpenCV \cite{bradski2000opencv} para PDI, \texttt{pugixml} \cite{pugixml} para ler os XMLs de anotação e CMake como sistema de construção. Há três módulos: \texttt{DatasetParser} (anotações), \texttt{ParkingPipeline} (PDI e decisão) e \texttt{Evaluator} (métricas e registro em CSV). A Figura~\ref{fig:pipeline} resume o fluxo.
+
+\begin{figure}[htbp]
+\centering
+\caption{Pipeline proposto: PDI global sobre o quadro e decisão por vaga.}
+\label{fig:pipeline}
+\small
+\fbox{\parbox{0.92\textwidth}{\centering
+Imagem $1280\times720$ $\rightarrow$ tons de cinza $\rightarrow$ Gauss $3\times3$ ($\sigma=1$) $\rightarrow$ limiarização adaptativa (bloco $25\times25$, $C=16$) $\rightarrow$ dilatação $3\times3$ $\rightarrow$ máscara poligonal por vaga $\rightarrow$ contagem $p_i$ $\rightarrow$ $p_i\ge\tau$?}}
+\fonte{Elaborado pelo autor.}
+\end{figure}
+
+\textbf{PDI global.} A conversão para cinza, o filtro gaussiano $3\times3$ com $\sigma=1$, a limiarização adaptativa gaussiana invertida (bloco $25\times25$, $C=16$) e a dilatação com elemento retangular $3\times3$ são aplicados uma única vez ao quadro completo. Isso evita repetir operações por vaga e preserva, na binarização, o contexto de vizinhança que seria perdido ao recortar a vaga antes. Em \texttt{adaptiveThreshold}, o OpenCV deriva o $\sigma$ da janela gaussiana de $25\times25$ como $0{,}3\,((25-1)/2-1)+0{,}8=4{,}1$.
+
+\textbf{Mascaramento por vaga.} Para cada vaga, lê-se do XML o polígono de quatro vértices, calcula-se a caixa delimitadora, recorta-se essa região da imagem binária e preenche-se uma máscara convexa (\texttt{fillConvexPoly}) com os vértices exatos. A operação \texttt{bitwise\_and} zera o que está fora do polígono, de modo que faixas, calçadas e carros vizinhos não contribuem para a contagem. A caixa delimitadora é recortada pelos limites do quadro antes do uso.
+
+\textbf{Decisão.} A característica $p_i$ é obtida por \texttt{countNonZero} sobre a região mascarada, e a vaga é classificada como ocupada se $p_i\ge\tau$. O limiar $\tau$ é o único hiperparâmetro de decisão e é calibrado na Seção~\ref{sec:calibracao}. Os rótulos ($\texttt{occupied}\in\{0,1\}$) vêm do mesmo XML e servem apenas para a avaliação.
+
+\textbf{Protocolo.} O método não tem etapa de treinamento, de modo que não há divisão treino/teste: $\tau$ é ajustado em um subconjunto de UFPR04 e depois fixado para todos os pátios. A condição \textit{Overcast} da publicação original corresponde à pasta \texttt{Cloudy} usada no código e é denominada ``nublado'' neste texto. A contagem de FPS inclui a leitura do JPEG, o \textit{parsing} do XML, o PDI e a decisão, ou seja, é uma medida ponta a ponta.
+
+% ----------------------------------------------------------
+\section{Resultados experimentais e análise de falhas}
+\label{sec:resultados}
+% ----------------------------------------------------------
+
+\subsection{Calibração do limiar \texorpdfstring{$\tau$}{tau} no pátio UFPR04}
+\label{sec:calibracao}
+
+O limiar foi varrido de 700 a 2.500 pixels (passo de 100) no UFPR04, com 200 imagens por condição climática, o que dá 5.600 vagas por clima e 16.800 avaliações por rodada. A Tabela~\ref{tab:calibracao} mostra os pontos mais informativos.
+
+\begin{table}[htbp]
+\centering
+\caption{Calibração de $\tau$ no UFPR04 (200 imagens por clima; 16.800 avaliações por valor de $\tau$).}
+\label{tab:calibracao}
+\small
+\begin{tabular}{rccccc}
+\toprule
+$\tau$ & Acur. Sunny & Acur. Cloudy & Acur. Rainy & \textbf{Acur. global} & \textbf{F1 médio} \\
+\midrule
+700  & 69,29\% & 89,55\% & 79,71\% & 79,52\% & 77,32\% \\
+800  & 77,88\% & 89,11\% & 85,70\% & 84,23\% & 81,09\% \\
+\textbf{900}  & 82,38\% & 86,43\% & 88,62\% & \textbf{85,81\%} & \textbf{82,37\%} \\
+1000 & 83,95\% & 81,00\% & 89,11\% & 84,68\% & 80,92\% \\
+1100 & 82,48\% & 74,46\% & 88,39\% & 81,78\% & 76,93\% \\
+1500 & 76,27\% & 48,07\% & 83,59\% & 69,31\% & 54,76\% \\
+2500 & 70,64\% & 29,66\% & 78,38\% & 59,56\% & 22,36\% \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor, a partir de \texttt{historico\_experimentos.csv}.}
+\end{table}
+
+O comportamento é o de um compromisso entre dois erros. Para $\tau<900$ o \textit{recall} é alto (cerca de 96\%), mas a precisão cai nas condições de sol e chuva (cerca de 53\% e 54\%): sombras de árvores e reflexos em poças geram entre 700 e 850 pixels ativos em vagas livres, o que produz mais de 1.600 FP. Para $\tau>1000$ o sistema fica restritivo demais: sob luz difusa os veículos geram contraste menor, em torno de 800 a 1.100 pixels, e os FN passam a 1.320 em $\tau=1100$ e a 2.848 em $\tau=1500$. O melhor equilíbrio ocorre em $\tau=900$, com acurácia global de 85,81\%, F1 médio de 82,37\% e \textit{recall} de 86,99\%. Como a condição nublada degrada primeiro com o aumento de $\tau$ e a ensolarada só melhora até $\tau=1000$, nenhum limiar único é ótimo para as três condições, e o valor 900 prioriza o ganho em precisão no sol e na chuva sem perda grande de \textit{recall} no nublado. Esse subconjunto de calibração é uma parte do próprio UFPR04, de modo que os resultados desse pátio no benchmark são, em alguma medida, otimistas.
+
+\subsection{Benchmark em larga escala}
+
+Com $\tau=900$ fixo, foram processadas 12.416 imagens da base (a publicação original informa 12.417; a diferença é uma imagem em PUCPR/Sunny, 2.314 processadas contra 2.315), com 719.528 decisões de vaga. A Tabela~\ref{tab:benchmark} apresenta os resultados por pátio e condição, e a Tabela~\ref{tab:patios} os consolida por pátio.
+
+\begin{table}[htbp]
+\centering
+\caption{Resultados do método de PDI clássico ($\tau=900$) sobre as imagens processadas da base PKLot.}
+\label{tab:benchmark}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llrrrrrrr}
+\toprule
+\textbf{Pátio} & \textbf{Condição} & \textbf{Imagens} & \textbf{Vagas} & \textbf{Acurácia} & \textbf{Precisão} & \textbf{Recall} & \textbf{F1} & \textbf{FPS} \\
+\midrule
+UFPR04 & Ensolarado & 2.098 & 58.744  & 86,63\% & 84,73\% & 92,19\% & 88,31\% & 21,5 \\
+UFPR04 & Nublado    & 1.408 & 39.424  & 88,31\% & 74,51\% & 91,67\% & 82,21\% & 21,9 \\
+UFPR04 & Chuvoso    & 285   & 7.980   & 88,90\% & 76,94\% & 89,04\% & 82,55\% & 22,2 \\
+UFPR05 & Ensolarado & 2.500 & 100.000 & 78,39\% & 79,75\% & 83,73\% & 81,69\% & 21,4 \\
+UFPR05 & Nublado    & 1.426 & 57.040  & 79,00\% & 81,48\% & 83,51\% & 82,48\% & 21,7 \\
+UFPR05 & Chuvoso    & 226   & 9.040   & 75,56\% & 85,45\% & 76,72\% & 80,85\% & 21,7 \\
+PUCPR  & Ensolarado & 2.314 & 231.400 & 69,78\% & 70,81\% & 44,55\% & 54,69\% & 20,5 \\
+PUCPR  & Nublado    & 1.328 & 132.800 & 77,53\% & 69,50\% & 52,66\% & 59,92\% & 20,7 \\
+PUCPR  & Chuvoso    & 831   & 83.100  & 61,80\% & 86,59\% & 50,16\% & 63,52\% & 20,5 \\
+\midrule
+\textbf{Total} & \textbf{Todas} & \textbf{12.416} & \textbf{719.528} & \textbf{74,89\%} & \textbf{78,08\%} & \textbf{64,22\%} & \textbf{70,47\%} & \textbf{21,2} \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor, a partir de \texttt{historico\_final\_tau\_900.csv}.}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Resultados consolidados por pátio ($\tau=900$).}
+\label{tab:patios}
+\small
+\begin{tabular}{lrrrrrrr}
+\toprule
+\textbf{Pátio} & \textbf{Vagas/imagem} & \textbf{Acurácia} & \textbf{Precisão} & \textbf{Recall} & \textbf{F1} & \textbf{FP} & \textbf{FN} \\
+\midrule
+UFPR04 & 28  & 87,42\% & 81,52\% & 91,90\% & 86,40\% & 9.613  & 3.736 \\
+UFPR05 & 40  & 78,45\% & 80,66\% & 83,21\% & 81,92\% & 19.443 & 16.353 \\
+PUCPR  & 100 & 70,59\% & 74,54\% & 47,95\% & 58,36\% & 31.476 & 100.056 \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor. Vagas por imagem calculadas como vagas avaliadas divididas por imagens processadas.}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\caption{Acurácia e F1-Score por pátio e condição climática ($\tau=900$).}
+\label{fig:fig1}
+\figurafonte{benchmark_fig1_patio_clima.png}{0.95}{Acurácia e F1 por pátio e clima}
+\fonte{Elaborado pelo autor.}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\caption{Impacto da altura da câmera e da resolução das vagas nas métricas consolidadas por pátio.}
+\label{fig:fig2}
+\figurafonte{benchmark_fig2_impacto_camera.png}{0.75}{Impacto da altura da câmera}
+\fonte{Elaborado pelo autor.}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\caption{Matriz de confusão global agregada (719.528 decisões de vaga).}
+\label{fig:fig4}
+\figurafonte{benchmark_fig4_matriz_global_total.png}{0.55}{Matriz de confusão global}
+\fonte{Elaborado pelo autor.}
+\end{figure}
+
+O resultado global, de 74,89\% de acurácia e 70,47\% de F1, esconde uma heterogeneidade grande (Figura~\ref{fig:fig1} e Tabela~\ref{tab:patios}). O pátio PUCPR responde por 62,2\% das decisões avaliadas (447.300 de 719.528) e, portanto, puxa a média global para baixo. A matriz de confusão agregada (Figura~\ref{fig:fig4}) mostra que 120.145 dos erros são FN e 60.532 são FP, ou seja, o sistema erra mais por não ver carros do que por inventá-los, e 83,3\% dos FN (100.056) ocorrem na PUCPR.
+
+Dois cuidados de leitura são necessários. Primeiro, no UFPR04 a condição nublada tem a maior acurácia (88,31\%) e, ao mesmo tempo, uma precisão baixa (74,51\%): isso se deve à prevalência, pois apenas 29,5\% das vagas estão ocupadas, e então poucos FP por vaga livre pesam muito na precisão. Segundo, os resultados do UFPR04 no benchmark completo (por exemplo, 86,63\% de acurácia em Sunny) diferem dos da calibração (82,38\%) porque o subconjunto de 200 imagens e o conjunto completo têm composição diferente.
+
+\subsection{Comparação com o \textit{baseline} do PKLot}
+\label{sec:comparacao}
+
+O \textit{baseline} de \citeonline{almeida2015pklot} não é diretamente comparável ao método aqui proposto: ele treina SVMs sobre descritores de textura (LBP e LPQ), usa metade dos dias para treino e metade para teste e classifica recortes de vagas, ao passo que este trabalho não tem etapa de treinamento e avalia todas as imagens com um único limiar calibrado no UFPR04. O cenário mais próximo é o de treinar (aqui, calibrar) no UFPR04 e testar nos demais pátios, resumido na Tabela~\ref{tab:comparacao}.
+
+\begin{table}[htbp]
+\centering
+\caption{Acurácia deste trabalho ($\tau=900$, calibrado no UFPR04, sem treinamento) e do \textit{baseline} do PKLot (SVM com LBP/LPQ treinado no UFPR04).}
+\label{tab:comparacao}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Pátio de teste} & \textbf{Baseline (fusão)} & \textbf{Baseline (melhor único)} & \textbf{Este trabalho} & \textbf{Diferença (fusão)} \\
+\midrule
+UFPR04 (mesmo pátio) & 99,64\% & 99,55\% & 87,42\% & $-12{,}22$ p.p. \\
+UFPR05               & 88,33\% & 84,92\% & 78,45\% & $-9{,}88$ p.p. \\
+PUCPR                & 88,40\% & 84,25\% & 70,59\% & $-17{,}81$ p.p. \\
+\bottomrule
+\end{tabular}
+\fonte{Elaborado pelo autor, a partir da Tabela 3 de \citeonline{almeida2015pklot} e da Tabela~\ref{tab:patios}.}
+\end{table}
+
+O \textit{baseline} é superior em todos os casos. No próprio UFPR04, o erro do método proposto é de 12,58\%, contra 0,36\% do \textit{baseline}. Ao trocar de pátio, a queda de desempenho em relação ao UFPR04 é de 8,97 e 16,83 pontos percentuais (UFPR05 e PUCPR) neste trabalho, contra cerca de 11,3 e 11,2 pontos no \textit{baseline}: a transferência para o UFPR05 degrada menos aqui, mas a transferência para a PUCPR degrada mais. A tendência qualitativa coincide com a relatada pelos autores, que atribuem a pior generalização para a PUCPR às diferenças de padrão do solo, ângulo de visão e altura de montagem da câmera \cite{almeida2015pklot}, os mesmos fatores discutidos na Seção~\ref{sec:falhas}. Mesmo no \textit{baseline}, o classificador treinado no UFPR04 rotula como vazias entre 19,3\% e 27,4\% das vagas ocupadas da PUCPR (Tabela 3(c) do artigo), contra 52,1\% de carros não detectados neste trabalho (100.056 de 192.216), o que é compatível com a sensibilidade de um limiar absoluto à escala da vaga. Os erros que os autores analisam, como oclusão por carros vizinhos e árvores e alterações da superfície por sombra e chuva, correspondem em parte aos modos de falha identificados aqui. A vantagem do método proposto não está, portanto, na exatidão, e sim no custo computacional, na ausência de treinamento e na explicabilidade dos erros.
+
+\subsection{Exemplos qualitativos}
+
+Para complementar as métricas agregadas, a Figura~\ref{fig:galeria} mostra uma imagem de cada combinação de pátio e condição climática processada com $\tau=900$: as caixas vermelhas indicam vagas classificadas como ocupadas, as verdes como livres, e a faixa inferior de cada painel informa o total de vagas, as contagens preditas de ocupadas e livres e, para comparação, o número de vagas ocupadas segundo o gabarito. A Figura~\ref{fig:galeria_bin} apresenta as mesmas nove imagens após a binarização e a dilatação, isto é, a representação sobre a qual $p_i$ é contado. A seleção é ilustrativa (uma amostra por combinação) e não substitui as estatísticas das Tabelas~\ref{tab:benchmark} e~\ref{tab:patios}. % TODO: após ver as imagens, citar 1 ou 2 exemplos concretos (ex.: sombra em Sunny, reflexo em Rainy, carros da PUCPR com poucos pixels ativos).
+
+\begin{figure}[htbp]
+\centering
+\caption{Amostras de cada pátio (linhas) e condição climática (colunas) com a classificação por vaga ($\tau=900$): vermelho = ocupada; verde = livre.}
+\label{fig:galeria}
+\figurafonte{galeria_exemplos.png}{1.0}{Mosaico 3x3 com detecção}
+\fonte{Elaborado pelo autor.}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\caption{Imagens binarizadas (limiarização adaptativa e dilatação) das mesmas amostras da Figura~\ref{fig:galeria}, com os polígonos das vagas.}
+\label{fig:galeria_bin}
+\figurafonte{galeria_binarizada.png}{1.0}{Mosaico 3x3 binarizado}
+\fonte{Elaborado pelo autor.}
+\end{figure}
+
+\subsection{Análise dos modos de falha}
+\label{sec:falhas}
+
+\textbf{Sombras projetadas no sol (FP).} Em dias claros, copas de árvores, postes e carros vizinhos projetam sombras de borda nítida sobre vagas vazias. Como a limiarização adaptativa ativa pixels mais escuros que a média local em mais de $C=16$ níveis, a transição abrupta entre asfalto iluminado e sombreado gera uma faixa ativa de intensidade e forma semelhantes à borda de um veículo. A dilatação conecta essa faixa e eleva $p_i$ acima de $\tau$. Isso explica a precisão limitada em Sunny no UFPR05 (79,75\%) e o grande número de FP naquele pátio (19.443).
+
+\textbf{Reflexos em pavimento molhado (FP).} A lâmina d'água se comporta como superfície especular: pela refletância de Fresnel da interface ar--água, que cresce com a incidência rasante, poças refletem o céu e as luminárias, e o impacto das gotas adiciona ruído granular de alta frequência. A binarização trata esse padrão como estrutura, e a dilatação o agrega em blocos que superam $\tau$. A chuva também reduz a luz disponível e o contraste da lataria, o que afeta ao mesmo tempo os dois lados do limiar. A condição chuvosa ocupa poucas imagens (285, 226 e 831), de modo que as estimativas para ela têm maior incerteza.
+
+\textbf{Textura do piso (FP).} Nas imagens binarizadas da PUCPR (Figura~\ref{fig:galeria_bin}), observa-se que o piso de bloquete, sob iluminação fraca, produz uma nuvem de pixels ativos de alta frequência, que para a contagem $p_i$ se assemelha à estrutura de um veículo e pode elevar $p_i$ em vagas livres. Trata-se de um indício qualitativo, ainda não quantificado por pátio; \citeonline{almeida2015pklot} também apontam o padrão do solo entre os fatores que distinguem a PUCPR dos demais pátios.
+
+\textbf{Altura da câmera e escala da vaga (FN).} A PUCPR é filmada do 10º andar e enquadra 100 vagas em $1280\times720$, contra 28 vagas no UFPR04 (4º andar) e 40 vagas por imagem no UFPR05. Com a mesma resolução da matriz, a área em pixels de cada vaga decresce com a distância e com o número de vagas enquadradas. Estima-se que uma vaga da PUCPR ocupe menos de um terço da área em pixels de uma do UFPR04. % TODO: confirmar calculando a área média dos polígonos (cv::contourArea) de cada pátio.
+Como $p_i$ é uma contagem absoluta, um carro na PUCPR raramente atinge 900 pixels ativos, mesmo com todas as suas arestas corretamente segmentadas. O resultado é a subdetecção sistemática: \textit{recall} de 44,55\% a 52,66\% nas três condições e 100.056 carros não vistos, enquanto a precisão se mantém entre 69,5\% e 86,6\%. O padrão de FN alto com precisão preservada é a assinatura de um limiar alto demais para a escala, e não de um problema de segmentação. Os pátios seguem uma ordem monótona com a geometria (acurácia de 87,42\%, 78,45\% e 70,59\%, com \textit{recall} de 91,90\%, 83,21\% e 47,95\%, para UFPR04, UFPR05 e PUCPR). Esse é o achado central: $\tau$ não é invariante à escala da cena, e a sua transferência entre câmeras exige $\tau_i\propto A_i$, com $A_i$ a área em pixels do polígono da vaga. É também o comportamento de generalização ruim entre câmeras que \citeonline{almeida2015pklot} observam para classificadores treinados.
+
+\subsection{Desempenho computacional}
+
+O sistema operou em CPU, em um único \textit{thread}, entre 20,5 e 22,2 FPS por conjunto, com agregado de cerca de 21,2 FPS (12.416 imagens em aproximadamente 585 s somando os nove conjuntos). % TODO: informar o modelo da CPU e do disco usados.
+A medida inclui a decodificação do JPEG e a leitura do XML. A queda para 20,5 a 20,7 FPS na PUCPR é coerente com o maior número de vagas por imagem (100 máscaras por quadro), e a estabilidade do restante mostra que o custo é dominado pelas operações lineares sobre os $1280\times720$ pixels, como se espera de um pipeline sem etapa iterativa. O comportamento temporal é, portanto, previsível, o que atende ao requisito de tempo real determinístico.
+
+% ----------------------------------------------------------
+\section{Conclusões e trabalhos futuros}
+% ----------------------------------------------------------
+
+Foi implementado e avaliado um detector de vagas baseado apenas em PDI clássico. A calibração em UFPR04 fixou $\tau=900$ (acurácia de 85,81\% e F1 médio de 82,37\%) e o benchmark em 12.416 imagens e 719.528 decisões deu acurácia global de 74,89\% e F1 de 70,47\%, a cerca de 21,2 FPS em CPU. O método funciona bem quando a geometria da câmera favorece a escala da vaga, como no UFPR04 (87,42\%), e executa em tempo real sem GPU, o que sustenta a hipótese de viabilidade para \textit{edge computing}. Não funcionou como regra única para câmeras distantes: com um limiar absoluto, a PUCPR teve \textit{recall} abaixo de 53\%. Também há erros residuais por sombras duras, reflexos em piso molhado e textura do piso (bloquete), que a binarização local não distingue de bordas de veículos. As principais limitações são: calibração em um único pátio, composta por subconjunto do próprio benchmark; ausência de divisão treino/teste e de comparação direta com métodos supervisionados; e poucas imagens na condição chuvosa.
+
+Três melhorias decorrem da análise. (1) \textbf{Limiar normalizado pela área}: substituir $\tau$ por $\tau_i=\kappa A_i$, com $A_i$ a área do polígono, de modo a corrigir a perda de sensibilidade na PUCPR. (2) \textbf{Supressão de sombras em HSV}: usar os canais $V$ e $S$ para distinguir sombra, que reduz $V$ sem alterar muito a crominância, de carroceria, antes da binarização. (3) \textbf{Integração temporal}: como o estado de uma vaga muda lentamente, exigir confirmação por vários quadros consecutivos eliminaria alarmes transitórios causados por pedestres ou nuvens.
+
+\bookmarksetup{startatroot}
+
+\postextual
+\bibliography{referencias}
+
+% ----------------------------------------------------------
+% Apêndice: código principal (não conta no limite de páginas)
+% ----------------------------------------------------------
+\begin{apendicesenv}
+\chapter{Código-fonte principal}
+Código-fonte em C++20 do projeto, lido das pastas \texttt{include/} e \texttt{src/}.
+
+\section*{ParkingPipeline.hpp}
+\lstinputlisting{../include/ParkingPipeline.hpp}
+\section*{ParkingPipeline.cpp}
+\lstinputlisting{../src/ParkingPipeline.cpp}
+\section*{DatasetParser.hpp}
+\lstinputlisting{../include/DatasetParser.hpp}
+\section*{DatasetParser.cpp}
+\lstinputlisting{../src/DatasetParser.cpp}
+\section*{Evaluator.hpp}
+\lstinputlisting{../include/Evaluator.hpp}
+\section*{Evaluator.cpp}
+\lstinputlisting[basicstyle=\ttfamily\tiny]{../src/Evaluator.cpp}
+\section*{main.cpp}
+\lstinputlisting{../src/main.cpp}
+\end{apendicesenv}
+
+\end{document}

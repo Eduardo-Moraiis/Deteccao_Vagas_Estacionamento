@@ -14,7 +14,7 @@ out/
 *.dll
 .vs/
 
-# Ambiente Virtual e Cache do Python (NÃO subir para o GitHub!)
+# Ambiente virtual e cache do Python (NÃO subir para o GitHub!)
 venv/
 .venv/
 env/
@@ -28,3 +28,24 @@ data/
 # Arquivos temporários do Windows
 Thumbs.db
 desktop.ini
+
+# Arquivos auxiliares gerados pelo LaTeX (relatorio_tex/)
+*.aux
+*.log
+*.bbl
+*.blg
+*.brf
+*.out
+*.toc
+*.lof
+*.lot
+*.idx
+*.ind
+*.ilg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+
+# Arquivos
+relatorio.md

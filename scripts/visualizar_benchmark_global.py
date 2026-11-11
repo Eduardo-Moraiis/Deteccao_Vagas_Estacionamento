@@ -1,385 +1,303 @@
+"""
+Visualização do benchmark global do PDI clássico (PKLot, 3 pátios x 3 climas).
+
+Uso (a partir da pasta scripts/ ou da raiz do projeto):
+    python visualizar_benchmark_global.py
+    python visualizar_benchmark_global.py --csv ../historico_final_tau_900.csv --saida ../graficos
+
+Gera, em --saida:
+    benchmark_fig1_patio_clima.png, benchmark_fig2_impacto_camera.png,
+    benchmark_fig3_heatmap_pivot.png, benchmark_fig4_matriz_global_total.png,
+    tabela_benchmark.tex, tabela_patios.tex   (para \\input no artigo)
+
+Todas as métricas são recalculadas a partir das contagens VP/VN/FP/FN, e os
+totais (vagas, acurácia, FPS) vêm dos dados, sem valores digitados à mão.
+"""
+import argparse
 import os
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
+PATIOS = ["UFPR04", "UFPR05", "PUCPR"]
+CLIMAS = ["Sunny", "Cloudy", "Rainy"]
+CLIMA_PT = {"Sunny": "Ensolarado", "Cloudy": "Nublado", "Rainy": "Chuvoso"}
+DESC_PATIO = {
+    "UFPR04": "UFPR04\n(4º andar)",
+    "UFPR05": "UFPR05\n(5º andar)",
+    "PUCPR": "PUCPR\n(10º andar)",
+}
+COLS = ["Clima", "Imagens", "Vagas", "VP", "VN", "FP", "FN", "FPS"]
+
 plt.style.use("seaborn-v0_8-whitegrid")
-plt.rcParams.update(
-    {
-        "font.family": "sans-serif",
-        "font.size": 10,
-        "axes.titlesize": 12,
-        "axes.labelsize": 11,
-        "xtick.labelsize": 9,
-        "ytick.labelsize": 9,
-        "legend.fontsize": 9,
-        "figure.titlesize": 13,
-    }
-)
-
-PASTA_GRAFICOS = "graficos"
-os.makedirs(PASTA_GRAFICOS, exist_ok=True)
-
-ARQUIVO_CSV = "historico_final_tau_900.csv"
-if not os.path.exists(ARQUIVO_CSV):
-    if os.path.exists(os.path.join("..", ARQUIVO_CSV)):
-        ARQUIVO_CSV = os.path.join("..", ARQUIVO_CSV)
-
-# Tenta carregar do CSV; caso não ache, usa os dados do benchmark executado
-if os.path.exists(ARQUIVO_CSV):
-    df_raw = pd.read_csv(ARQUIVO_CSV, sep=";")
-    # Filtra as linhas que contêm os pátios (UFPR04, UFPR05, PUCPR)
-    df = df_raw[df_raw["Clima"].str.contains("_", na=False)].copy()
-    if df.empty:
-        df = df_raw.copy()
-else:
-    df = pd.DataFrame()
-
-# Se por algum motivo o CSV não tiver as linhas completas, carrega direto os dados da rodada:
-if len(df) < 9:
-    dados_benchmark = """DataHora;Limiar_Tau;Clima;Imagens;Vagas;VP;VN;FP;FN;Acuracia_Porc;Precisao_Porc;Recall_Porc;F1_Score_Porc;Taxa_Erro_Porc;FPS
-2026-10-31 11:29:43;900;UFPR04_Sunny;2098;58744;29658;21232;5343;2511;86.63;84.73;92.19;88.31;13.37;21.5
-2026-10-31 11:29:43;900;UFPR04_Cloudy;1408;39424;10646;24169;3642;967;88.31;74.51;91.67;82.21;11.69;21.9
-2026-10-31 11:29:43;900;UFPR04_Rainy;285;7980;2095;4999;628;258;88.90;76.94;89.04;82.55;11.10;22.2
-2026-10-31 11:29:43;900;UFPR05_Sunny;2500;100000;48214;30175;12241;9370;78.39;79.75;83.73;81.69;21.61;21.4
-2026-10-31 11:29:43;900;UFPR05_Cloudy;1426;57040;28196;16868;6408;5568;79.00;81.48;83.51;82.48;21.00;21.7
-2026-10-31 11:29:43;900;UFPR05_Rainy;226;9040;4663;2168;794;1415;75.56;85.45;76.72;80.85;24.44;21.7
-2026-10-31 11:29:43;900;PUCPR_Sunny;2314;231400;42212;119248;17404;52536;69.78;70.81;44.55;54.69;30.22;20.5
-2026-10-31 11:29:43;900;PUCPR_Cloudy;1328;132800;22308;80646;9791;20055;77.53;69.50;52.66;59.92;22.47;20.7
-2026-10-31 11:29:43;900;PUCPR_Rainy;831;83100;27640;23714;4281;27465;61.80;86.59;50.16;63.52;38.20;20.5"""
-    import io
-
-    df = pd.read_csv(io.StringIO(dados_benchmark), sep=";")
-
-# Separa a coluna Clima em "Patio" e "Condicao"
-df[["Patio", "Condicao"]] = df["Clima"].str.split("_", expand=True)
-df["Condicao_PT"] = df["Condicao"].replace(
-    {"Sunny": "Ensolarado", "Cloudy": "Nublado", "Rainy": "Chuvoso"}
-)
-
-print(f"[OK] Analisando {len(df)} conjuntos de dados da base PKLot completa.")
-print(f"Total de Vagas Processadas: {df['Vagas'].sum():,} | Imagens: {df['Imagens'].sum():,}")
+plt.rcParams.update({
+    "font.family": "sans-serif", "font.size": 10, "axes.titlesize": 12,
+    "axes.labelsize": 11, "xtick.labelsize": 9, "ytick.labelsize": 9,
+    "legend.fontsize": 9, "figure.titlesize": 13,
+})
 
 
-# ==============================================================================
-# FIGURA 1: Comparativo de Acurácia e F1 por Pátio e Clima
-# ==============================================================================
-fig, axes = plt.subplots(1, 2, figsize=(14, 4.8))
-
-sns.barplot(
-    data=df,
-    x="Patio",
-    y="Acuracia_Porc",
-    hue="Condicao_PT",
-    palette="Blues_d",
-    ax=axes[0],
-    edgecolor="black",
-)
-axes[0].set_title(
-    "Acurácia (%) por Pátio e Condição Climática", fontweight="bold"
-)
-axes[0].set_ylabel("Acurácia (%)")
-axes[0].set_xlabel("Pátio Avaliado")
-axes[0].set_ylim(40, 100)
-for p in axes[0].patches:
-    h = p.get_height()
-    if h > 0:
-        axes[0].annotate(
-            f"{h:.1f}%",
-            (p.get_x() + p.get_width() / 2.0, h),
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            fontweight="bold",
-            xytext=(0, 2),
-            textcoords="offset points",
-        )
-
-sns.barplot(
-    data=df,
-    x="Patio",
-    y="F1_Score_Porc",
-    hue="Condicao_PT",
-    palette="Reds_d",
-    ax=axes[1],
-    edgecolor="black",
-)
-axes[1].set_title(
-    "F1-Score (%) por Pátio e Condição Climática", fontweight="bold"
-)
-axes[1].set_ylabel("F1-Score (%)")
-axes[1].set_xlabel("Pátio Avaliado")
-axes[1].set_ylim(40, 100)
-for p in axes[1].patches:
-    h = p.get_height()
-    if h > 0:
-        axes[1].annotate(
-            f"{h:.1f}%",
-            (p.get_x() + p.get_width() / 2.0, h),
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            fontweight="bold",
-            xytext=(0, 2),
-            textcoords="offset points",
-        )
-
-plt.suptitle(
-    "Benchmark Completo do PDI Clássico nos 3 Pátios da Base PKLot ($\\tau = 900$)",
-    fontweight="bold",
-    fontsize=13,
-)
-plt.tight_layout()
-caminho_fig1 = os.path.join(PASTA_GRAFICOS, "benchmark_fig1_patio_clima.png")
-plt.savefig(caminho_fig1, dpi=300)
-plt.close()
-print(f"[SALVO] {caminho_fig1}")
+# ----------------------------------------------------------------------------
+# Utilitários
+# ----------------------------------------------------------------------------
+def achar_csv(caminho):
+    candidatos = [caminho] if caminho else []
+    nome = "historico_final_tau_900.csv"
+    candidatos += [nome, os.path.join("..", nome), os.path.join("..", "..", nome)]
+    for c in candidatos:
+        if c and os.path.exists(c):
+            return c
+    sys.exit(f"[ERRO] CSV não encontrado. Tentei: {candidatos}")
 
 
-# ==============================================================================
-# FIGURA 2: O Efeito da Altura da Câmera (Recall e Falsos Negativos)
-# ==============================================================================
-resumo_patio = (
-    df.groupby("Patio")
-    .agg(
-        {
-            "Vagas": "sum",
-            "VP": "sum",
-            "VN": "sum",
-            "FP": "sum",
-            "FN": "sum",
-        }
-    )
-    .reset_index()
-)
-
-resumo_patio["Acuracia"] = (
-        (resumo_patio["VP"] + resumo_patio["VN"]) / resumo_patio["Vagas"] * 100.0
-)
-resumo_patio["Recall"] = (
-        resumo_patio["VP"] / (resumo_patio["VP"] + resumo_patio["FN"]) * 100.0
-)
-resumo_patio["Precisao"] = (
-        resumo_patio["VP"] / (resumo_patio["VP"] + resumo_patio["FP"]) * 100.0
-)
-resumo_patio["F1"] = (
-        2
-        * (resumo_patio["Precisao"] * resumo_patio["Recall"])
-        / (resumo_patio["Precisao"] + resumo_patio["Recall"])
-)
-
-# Descrição física de cada pátio para o gráfico
-resumo_patio["Descricao"] = [
-    "PUCPR\n(10º Andar - 100 vagas\nCâmera Alta / Vagas Menores)",
-    "UFPR04\n(4º Andar - 28 vagas\nCâmera Próxima / Vagas Maiores)",
-    "UFPR05\n(5º Andar - 45 vagas\nDistância Intermediária)",
-]
-
-fig, ax = plt.subplots(figsize=(9, 4.8))
-x = np.arange(len(resumo_patio))
-largura = 0.22
-
-rects1 = ax.bar(
-    x - largura * 1.5,
-    resumo_patio["Acuracia"],
-    largura,
-    label="Acurácia",
-    color="#1f77b4",
-    edgecolor="black",
-    )
-rects2 = ax.bar(
-    x - largura * 0.5,
-    resumo_patio["Precisao"],
-    largura,
-    label="Precisão",
-    color="#2ca02c",
-    edgecolor="black",
-    )
-rects3 = ax.bar(
-    x + largura * 0.5,
-    resumo_patio["Recall"],
-    largura,
-    label="Recall (Sensibilidade)",
-    color="#ff7f0e",
-    edgecolor="black",
-    )
-rects4 = ax.bar(
-    x + largura * 1.5,
-    resumo_patio["F1"],
-    largura,
-    label="F1-Score",
-    color="#d62728",
-    edgecolor="black",
+def metricas(vp, vn, fp, fn):
+    """Métricas em % a partir das contagens (aceita escalares ou Series)."""
+    n = vp + vn + fp + fn
+    prec = vp / (vp + fp) * 100
+    rec = vp / (vp + fn) * 100
+    return dict(
+        Acuracia=(vp + vn) / n * 100, Precisao=prec, Recall=rec,
+        F1=2 * prec * rec / (prec + rec),
     )
 
-ax.set_ylabel("Desempenho Médio Consolidado (%)")
-ax.set_title(
-    "Impacto da Altura da Câmera e Resolução das Vagas no Desempenho ($\\tau = 900$)",
-    fontweight="bold",
-)
-ax.set_xticks(x)
-ax.set_xticklabels(resumo_patio["Descricao"], fontweight="bold")
-ax.set_ylim(30, 105)
-ax.legend(loc="lower left", frameon=True)
 
-for bar_group in [rects1, rects2, rects3, rects4]:
-    for bar in bar_group:
-        h = bar.get_height()
-        ax.annotate(
-            f"{h:.1f}%",
-            xy=(bar.get_x() + bar.get_width() / 2, h),
-            xytext=(0, 2),
-            textcoords="offset points",
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            fontweight="bold",
-        )
-
-plt.tight_layout()
-caminho_fig2 = os.path.join(PASTA_GRAFICOS, "benchmark_fig2_impacto_camera.png")
-plt.savefig(caminho_fig2, dpi=300)
-plt.close()
-print(f"[SALVO] {caminho_fig2}")
+def fps_agregado(g):
+    """FPS global = imagens totais / tempo total (média harmônica ponderada)."""
+    return g["Imagens"].sum() / (g["Imagens"] / g["FPS"]).sum()
 
 
-# ==============================================================================
-# FIGURA 3: Heatmap 3x3 de Acurácia (Pátio x Clima)
-# ==============================================================================
-tabela_pivot = df.pivot(
-    index="Patio", columns="Condicao_PT", values="Acuracia_Porc"
-)
-tabela_pivot = tabela_pivot[["Ensolarado", "Nublado", "Chuvoso"]]
-
-plt.figure(figsize=(7, 4.2))
-sns.heatmap(
-    tabela_pivot,
-    annot=True,
-    fmt=".2f",
-    cmap="YlGnBu",
-    cbar=True,
-    linewidths=1,
-    linecolor="white",
-    annot_kws={"size": 12, "weight": "bold"},
-)
-plt.title(
-    "Matriz Térmica de Acurácia (%) — Pátio vs. Clima ($\\tau = 900$)",
-    fontweight="bold",
-)
-plt.ylabel("Pátio / Ângulo da Câmera", fontweight="bold")
-plt.xlabel("Condição Climática", fontweight="bold")
-plt.tight_layout()
-
-caminho_fig3 = os.path.join(PASTA_GRAFICOS, "benchmark_fig3_heatmap_pivot.png")
-plt.savefig(caminho_fig3, dpi=300)
-plt.close()
-print(f"[SALVO] {caminho_fig3}")
+def br(x, casas=2):
+    """Número no formato PT-BR (milhar com ponto, decimal com vírgula)."""
+    s = f"{x:,.{casas}f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-# ==============================================================================
-# FIGURA 4: Matriz de Confusão Global Agregada (669.528 Decisões)
-# ==============================================================================
-total_vp = int(df["VP"].sum())
-total_vn = int(df["VN"].sum())
-total_fp = int(df["FP"].sum())
-total_fn = int(df["FN"].sum())
-total_geral = total_vp + total_vn + total_fp + total_fn
-
-matriz_global = np.array([[total_vp, total_fn], [total_fp, total_vn]])
-
-rotulos_global = np.array(
-    [
-        [
-            f"VP\n{total_vp:,}\n({total_vp/total_geral*100:.1f}%)",
-            f"FN (Não viu o carro)\n{total_fn:,}\n({total_fn/total_geral*100:.1f}%)",
-        ],
-        [
-            f"FP (Alarme Falso)\n{total_fp:,}\n({total_fp/total_geral*100:.1f}%)",
-            f"VN\n{total_vn:,}\n({total_vn/total_geral*100:.1f}%)",
-        ],
-    ]
-)
-
-plt.figure(figsize=(6.5, 5))
-sns.heatmap(
-    matriz_global,
-    annot=rotulos_global,
-    fmt="",
-    cmap="Blues",
-    cbar=False,
-    xticklabels=["Predito: Ocupada", "Predito: Livre"],
-    yticklabels=["Real: Ocupada", "Real: Livre"],
-    annot_kws={"size": 11, "weight": "bold"},
-)
-
-acuracia_global = (total_vp + total_vn) / total_geral * 100.0
-plt.title(
-    f"Matriz de Confusão Global do Dataset PKLot Completo\nTotal: {total_geral:,} Vagas Avaliadas | Acurácia Geral: {acuracia_global:.2f}%",
-    fontweight="bold",
-)
-plt.tight_layout()
-caminho_fig4 = os.path.join(
-    PASTA_GRAFICOS, "benchmark_fig4_matriz_global_total.png"
-)
-plt.savefig(caminho_fig4, dpi=300)
-plt.close()
-print(f"[SALVO] {caminho_fig4}")
+def rotular_barras(ax, fmt="{:.1f}%", tam=8):
+    for cont in ax.containers:
+        ax.bar_label(cont, labels=[fmt.format(v) for v in cont.datavalues],
+                     fontsize=tam, fontweight="bold", padding=2)
 
 
-# ==============================================================================
-# TABELA FORMATADA PARA O RELATÓRIO ABNT / OVERLEAF
-# ==============================================================================
-print("\n" + "=" * 95)
-print(
-    "                TABELA COMPLETA DO BENCHMARK GLOBAL (PKLot 12.416 Imagens)                "
-)
-print("=" * 95)
-print(
-    df[
-        [
-            "Patio",
-            "Condicao_PT",
-            "Imagens",
-            "Vagas",
-            "VP",
-            "VN",
-            "FP",
-            "FN",
-            "Acuracia_Porc",
-            "Precisao_Porc",
-            "Recall_Porc",
-            "F1_Score_Porc",
-        ]
-    ].to_markdown(index=False)
-)
+# ----------------------------------------------------------------------------
+# Carga e validação
+# ----------------------------------------------------------------------------
+def carregar(caminho_csv):
+    df = pd.read_csv(caminho_csv, sep=";")
+    faltam = [c for c in COLS if c not in df.columns]
+    if faltam:
+        sys.exit(f"[ERRO] Colunas ausentes no CSV: {faltam}")
 
-print("\n" + "-" * 95)
-print("CÓDIGO LATEX DA TABELA CONSOLIDADA PARA O OVERLEAF:")
-print("-" * 95)
-print(r"\begin{table}[htbp]")
-print(r"\centering")
-print(
-    r"\caption{Resultados experimentais em larga escala do método de PDI clássico ($\tau = 900$) sobre o conjunto integral do dataset PKLot.}"
-)
-print(r"\label{tab:benchmark_global_pklot}")
-print(r"\begin{tabular}{llccccccc}")
-print(r"\hline")
-print(
-    r"\textbf{Pátio} & \textbf{Condição} & \textbf{Imagens} & \textbf{Vagas} & \textbf{Acurácia} & \textbf{Precisão} & \textbf{Recall} & \textbf{F1-Score} & \textbf{FPS} \\ \hline"
-)
-for _, r in df.iterrows():
-    print(
-        f"{r['Patio']} & {r['Condicao_PT']} & {int(r['Imagens'])} & {int(r['Vagas']):,} & {r['Acuracia_Porc']:.2f}\\% & {r['Precisao_Porc']:.2f}\\% & {r['Recall_Porc']:.2f}\\% & {r['F1_Score_Porc']:.2f}\\% & {r['FPS']:.1f} \\\\"
-    )
-print(r"\hline")
-print(
-    rf"\textbf{{TOTAL}} & \textbf{{Todas}} & \textbf{{{df['Imagens'].sum():,}}} & \textbf{{{total_geral:,}}} & \textbf{{{acuracia_global:.2f}\\%}} & \textbf{{--}} & \textbf{{--}} & \textbf{{--}} & \textbf{{21.5}} \\\\"
-)
-print(r"\hline")
-print(r"\end{tabular}")
-print(r"\end{table}")
-print("=" * 95)
-print(
-    f"\n[SUCESSO] 4 novas figuras do benchmark salvas em: '{os.path.abspath(PASTA_GRAFICOS)}'"
-)
+    # Se o CSV acumulou rodadas (modo append), usa a mais recente de cada Clima.
+    if "DataHora" in df.columns:
+        df = df.sort_values("DataHora").drop_duplicates("Clima", keep="last")
+
+    df = df[df["Clima"].str.contains("_", na=False)].copy()
+    df[["Patio", "Condicao"]] = df["Clima"].str.split("_", n=1, expand=True)
+    df["Patio"] = pd.Categorical(df["Patio"], PATIOS, ordered=True)
+    df["Condicao"] = pd.Categorical(df["Condicao"], CLIMAS, ordered=True)
+    df = df.sort_values(["Patio", "Condicao"]).reset_index(drop=True)
+    df["Condicao_PT"] = df["Condicao"].map(CLIMA_PT)
+
+    # Consistência interna: VP+VN+FP+FN deve ser igual ao número de vagas.
+    soma = df[["VP", "VN", "FP", "FN"]].sum(axis=1)
+    if not (soma == df["Vagas"]).all():
+        print("[AVISO] VP+VN+FP+FN difere de Vagas em alguma linha:")
+        print(df.loc[soma != df["Vagas"], ["Clima", "Vagas"]])
+
+    # Recalcula métricas a partir das contagens e confere com o CSV.
+    m = metricas(df["VP"], df["VN"], df["FP"], df["FN"])
+    for k, col in [("Acuracia", "Acuracia_Porc"), ("Precisao", "Precisao_Porc"),
+                   ("Recall", "Recall_Porc"), ("F1", "F1_Score_Porc")]:
+        df[k] = m[k]
+        if col in df.columns and (df[col] - df[k]).abs().max() > 0.01:
+            print(f"[AVISO] {col} do CSV difere do valor recalculado.")
+
+    tau = int(df["Limiar_Tau"].iloc[0]) if "Limiar_Tau" in df.columns else None
+    return df, tau
+
+
+def resumo_por_patio(df):
+    r = df.groupby("Patio", observed=True)[["Imagens", "Vagas", "VP", "VN", "FP", "FN"]].sum()
+    r = r.join(pd.DataFrame(metricas(r["VP"], r["VN"], r["FP"], r["FN"])))
+    r["VagasPorImagem"] = r["Vagas"] / r["Imagens"]
+    r["FPS"] = df.groupby("Patio", observed=True).apply(fps_agregado, include_groups=False)
+    return r.reset_index()
+
+
+# ----------------------------------------------------------------------------
+# Figuras
+# ----------------------------------------------------------------------------
+def fig1(df, tau, pasta, dpi):
+    fig, axes = plt.subplots(1, 2, figsize=(14, 4.8))
+    for ax, col, titulo, pal in [
+        (axes[0], "Acuracia", "Acurácia (%)", "Blues_d"),
+        (axes[1], "F1", "F1-Score (%)", "Reds_d"),
+    ]:
+        sns.barplot(data=df, x="Patio", y=col, hue="Condicao_PT",
+                    hue_order=list(CLIMA_PT.values()), palette=pal, ax=ax,
+                    edgecolor="black")
+        ax.set_title(f"{titulo} por pátio e condição climática", fontweight="bold")
+        ax.set_ylabel(titulo)
+        ax.set_xlabel("Pátio avaliado")
+        ax.set_ylim(40, 100)
+        ax.legend(title="Condição", loc="upper right", ncol=3,)
+        rotular_barras(ax)
+    plt.suptitle(f"Benchmark completo do PDI clássico na base PKLot ($\\tau = {tau}$)",
+                 fontweight="bold")
+    plt.tight_layout()
+    caminho = os.path.join(pasta, "benchmark_fig1_patio_clima.png")
+    plt.savefig(caminho, dpi=dpi)
+    plt.close()
+    return caminho
+
+
+def fig2(resumo, tau, pasta, dpi):
+    fig, ax = plt.subplots(figsize=(9, 4.8))
+    x = np.arange(len(resumo))
+    larg = 0.2
+    series = [("Acuracia", "Acurácia", "#1f77b4"), ("Precisao", "Precisão", "#2ca02c"),
+              ("Recall", "Recall", "#ff7f0e"), ("F1", "F1-Score", "#d62728")]
+    for i, (col, nome, cor) in enumerate(series):
+        barras = ax.bar(x + (i - 1.5) * larg, resumo[col], larg, label=nome,
+                        color=cor, edgecolor="black")
+        ax.bar_label(barras, labels=[f"{v:.1f}%" for v in resumo[col]],
+                     fontsize=8, fontweight="bold", padding=2)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{DESC_PATIO[p]}\n{v:.0f} vagas/imagem"
+                        for p, v in zip(resumo["Patio"], resumo["VagasPorImagem"])],
+                       fontweight="bold")
+    ax.set_ylabel("Desempenho consolidado (%)")
+    ax.set_ylim(30, 105)
+    ax.set_title(f"Impacto da altura da câmera e da escala das vagas ($\\tau = {tau}$)",
+                 fontweight="bold")
+    ax.legend(loc="upper right", ncol=2)
+    plt.tight_layout()
+    caminho = os.path.join(pasta, "benchmark_fig2_impacto_camera.png")
+    plt.savefig(caminho, dpi=dpi)
+    plt.close()
+    return caminho
+
+
+def fig3(df, tau, pasta, dpi):
+    piv = df.pivot(index="Patio", columns="Condicao_PT", values="Acuracia")
+    piv = piv[list(CLIMA_PT.values())].loc[PATIOS]
+    plt.figure(figsize=(7, 4.2))
+    sns.heatmap(piv, annot=True, fmt=".2f", cmap="YlGnBu", linewidths=1,
+                linecolor="white", annot_kws={"size": 12, "weight": "bold"},
+                cbar_kws={"label": "Acurácia (%)"})
+    plt.title(f"Acurácia (%) por pátio e clima ($\\tau = {tau}$)", fontweight="bold")
+    plt.ylabel("Pátio")
+    plt.xlabel("Condição climática")
+    plt.tight_layout()
+    caminho = os.path.join(pasta, "benchmark_fig3_heatmap_pivot.png")
+    plt.savefig(caminho, dpi=dpi)
+    plt.close()
+    return caminho
+
+
+def fig4(df, pasta, dpi):
+    vp, vn, fp, fn = (int(df[c].sum()) for c in ["VP", "VN", "FP", "FN"])
+    n = vp + vn + fp + fn
+    mat = np.array([[vp, fn], [fp, vn]])
+    rot = np.array([
+        [f"VP\n{vp:,}\n({vp / n * 100:.1f}%)", f"FN (carro não detectado)\n{fn:,}\n({fn / n * 100:.1f}%)"],
+        [f"FP (alarme falso)\n{fp:,}\n({fp / n * 100:.1f}%)", f"VN\n{vn:,}\n({vn / n * 100:.1f}%)"],
+    ])
+    plt.figure(figsize=(6.5, 5))
+    sns.heatmap(mat, annot=rot, fmt="", cmap="Blues", cbar=False,
+                xticklabels=["Predito: ocupada", "Predito: livre"],
+                yticklabels=["Real: ocupada", "Real: livre"],
+                annot_kws={"size": 11, "weight": "bold"})
+    plt.title(f"Matriz de confusão global — {n:,} vagas avaliadas\n"
+              f"Acurácia geral: {(vp + vn) / n * 100:.2f}%", fontweight="bold")
+    plt.tight_layout()
+    caminho = os.path.join(pasta, "benchmark_fig4_matriz_global_total.png")
+    plt.savefig(caminho, dpi=dpi)
+    plt.close()
+    return caminho
+
+
+# ----------------------------------------------------------------------------
+# Tabelas LaTeX (booktabs, formato PT-BR) para \input no artigo
+# ----------------------------------------------------------------------------
+def tabela_benchmark_tex(df, tau):
+    tot = {c: int(df[c].sum()) for c in ["Imagens", "Vagas", "VP", "VN", "FP", "FN"]}
+    mt = metricas(tot["VP"], tot["VN"], tot["FP"], tot["FN"])
+    L = [r"\begin{table}[htbp]", r"\centering",
+         rf"\caption{{Resultados do método de PDI clássico ($\tau={tau}$) sobre as imagens processadas da base PKLot.}}",
+         r"\label{tab:benchmark}", r"\footnotesize", r"\setlength{\tabcolsep}{3pt}",
+         r"\begin{tabular}{llrrrrrrr}", r"\toprule",
+         r"\textbf{Pátio} & \textbf{Condição} & \textbf{Imagens} & \textbf{Vagas} & \textbf{Acurácia} & \textbf{Precisão} & \textbf{Recall} & \textbf{F1} & \textbf{FPS} \\",
+         r"\midrule"]
+    for _, r in df.iterrows():
+        L.append(f"{r['Patio']} & {r['Condicao_PT']} & {br(r['Imagens'], 0)} & {br(r['Vagas'], 0)} & "
+                 f"{br(r['Acuracia'])}\\% & {br(r['Precisao'])}\\% & {br(r['Recall'])}\\% & "
+                 f"{br(r['F1'])}\\% & {br(r['FPS'], 1)} \\\\")
+    L += [r"\midrule",
+          f"\\textbf{{Total}} & \\textbf{{Todas}} & \\textbf{{{br(tot['Imagens'], 0)}}} & \\textbf{{{br(tot['Vagas'], 0)}}} & "
+          f"\\textbf{{{br(mt['Acuracia'])}\\%}} & \\textbf{{{br(mt['Precisao'])}\\%}} & \\textbf{{{br(mt['Recall'])}\\%}} & "
+          f"\\textbf{{{br(mt['F1'])}\\%}} & \\textbf{{{br(fps_agregado(df), 1)}}} \\\\",
+          r"\bottomrule", r"\end{tabular}",
+          r"\fonte{Elaborado pelo autor, a partir de \texttt{historico\_final\_tau\_900.csv}.}",
+          r"\end{table}"]
+    return "\n".join(L) + "\n"
+
+
+def tabela_patios_tex(resumo, tau):
+    L = [r"\begin{table}[htbp]", r"\centering",
+         rf"\caption{{Resultados consolidados por pátio ($\tau={tau}$).}}",
+         r"\label{tab:patios}", r"\small", r"\begin{tabular}{lrrrrrrr}", r"\toprule",
+         r"\textbf{Pátio} & \textbf{Vagas/imagem} & \textbf{Acurácia} & \textbf{Precisão} & \textbf{Recall} & \textbf{F1} & \textbf{FP} & \textbf{FN} \\",
+         r"\midrule"]
+    for _, r in resumo.iterrows():
+        L.append(f"{r['Patio']} & {br(r['VagasPorImagem'], 0)} & {br(r['Acuracia'])}\\% & "
+                 f"{br(r['Precisao'])}\\% & {br(r['Recall'])}\\% & {br(r['F1'])}\\% & "
+                 f"{br(r['FP'], 0)} & {br(r['FN'], 0)} \\\\")
+    L += [r"\bottomrule", r"\end{tabular}",
+          r"\fonte{Elaborado pelo autor. Vagas por imagem = vagas avaliadas / imagens processadas.}",
+          r"\end{table}"]
+    return "\n".join(L) + "\n"
+
+
+# ----------------------------------------------------------------------------
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--csv", help="caminho do historico_final_tau_900.csv")
+    ap.add_argument("--saida", default="graficos", help="pasta de saída (padrão: graficos)")
+    ap.add_argument("--dpi", type=int, default=300)
+    a = ap.parse_args()
+
+    os.makedirs(a.saida, exist_ok=True)
+    df, tau = carregar(achar_csv(a.csv))
+    if len(df) != 9:
+        print(f"[AVISO] Esperadas 9 linhas (3 pátios x 3 climas); encontradas {len(df)}.")
+
+    resumo = resumo_por_patio(df)
+    tot_vagas, tot_img = int(df["Vagas"].sum()), int(df["Imagens"].sum())
+    print(f"[OK] {len(df)} conjuntos | {tot_img:,} imagens | {tot_vagas:,} vagas | "
+          f"FPS global {fps_agregado(df):.1f}")
+
+    saidas = [fig1(df, tau, a.saida, a.dpi), fig2(resumo, tau, a.saida, a.dpi),
+              fig3(df, tau, a.saida, a.dpi), fig4(df, a.saida, a.dpi)]
+    for s in saidas:
+        print(f"[SALVO] {s}")
+
+    for nome, conteudo in [("tabela_benchmark.tex", tabela_benchmark_tex(df, tau)),
+                           ("tabela_patios.tex", tabela_patios_tex(resumo, tau))]:
+        caminho = os.path.join(a.saida, nome)
+        with open(caminho, "w", encoding="utf-8") as f:
+            f.write(conteudo)
+        print(f"[SALVO] {caminho}")
+
+    cols = ["Patio", "Condicao_PT", "Imagens", "Vagas", "VP", "VN", "FP", "FN",
+            "Acuracia", "Precisao", "Recall", "F1"]
+    print("\n" + df[cols].round(2).to_string(index=False))
+    print("\nConsolidado por pátio:")
+    print(resumo.round(2).to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()
